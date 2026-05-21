@@ -1,6 +1,5 @@
-# Claude Code local config and project notes (kept off the public repo)
+# Claude Code local settings (machine-specific)
 .claude/
-CLAUDE.md
 
 # Dependencies
 node_modules/
