@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CTF Platform — Study</title>
+  <meta name="description" content="Study companion for the Capture-The-Flag platform learning project." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%235fe3a1'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body class="page-home">
+
+  <div class="home">
+
+    <!-- ---- top bar ---- -->
+    <div class="home-top">
+      <div class="brand">
+        <div class="brand-mark">⚑</div>
+        <div class="brand-text">
+          <b>CTF Platform</b>
+          <span>study companion</span>
+        </div>
+      </div>
+      <div style="font-family:var(--mono);font-size:12px;color:var(--text-faint)">
+        M1 · Plumbing — in progress
+      </div>
+    </div>
+
+    <!-- ---- hero ---- -->
+    <header class="hero">
+      <div class="hero-eyebrow">// learning project</div>
+      <h1>Build a CTF platform.<br /><span class="grad">Learn the stack for real.</span></h1>
+      <p>
+        This is your study companion for building a Capture-The-Flag platform — a
+        small, self-hosted Hack The Box. You read a concept here, then you build it
+        yourself in <code>builder/</code>. One brick at a time, no shortcuts.
+      </p>
+      <div class="hero-actions">
+        <a class="btn btn--primary" href="m1-01-getting-laravel-running.html">
+          Start &nbsp;·&nbsp; M1-01: Getting Laravel Running →
+        </a>
+        <a class="btn btn--ghost" href="#how">How this works</a>
+      </div>
+    </header>
+
+    <!-- ---- how this works ---- -->
+    <section id="how">
+      <div class="section-label">How this works</div>
+      <div class="howto">
+        <div class="howto-card">
+          <div class="hc-step">01 — Learn</div>
+          <h3>Read the concept</h3>
+          <p>
+            Each concept is a page in this site, with diagrams and interactive demos
+            you can poke at. Claude writes these — they live in
+            <span class="folder">study/</span>.
+          </p>
+        </div>
+        <div class="howto-card">
+          <div class="hc-step">02 — Build</div>
+          <h3>Build it yourself</h3>
+          <p>
+            Every concept ends with a checkpoint: a real thing to build in
+            <span class="folder">builder/</span>. You write all of it. Claude never
+            does — that is the whole point.
+          </p>
+        </div>
+        <div class="howto-card">
+          <div class="hc-step">03 — Loop</div>
+          <h3>Come back &amp; review</h3>
+          <p>
+            When your checkpoint runs, return. Claude reviews your work, checks you
+            understand the <em>why</em>, then unlocks the next concept.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---- curriculum / milestones ---- -->
+    <section>
+      <div class="section-label">The milestones</div>
+      <p style="color:var(--text-dim);margin:-6px 0 18px;font-size:14px">
+        Six milestones from empty folder to a deployable platform. Concepts unlock
+        one at a time — you can't skip ahead, and that's deliberate.
+      </p>
+      <div class="milestones" id="curriculum-map"><!-- built by app.js --></div>
+    </section>
+
+    <footer class="site-foot">
+      <span>CTF Platform — study site · learn here, build in <span class="mono">builder/</span></span>
+      <span class="mono">opened straight from disk · no server needed</span>
+    </footer>
+
+  </div>
+
+  <script src="assets/js/app.js"></script>
+</body>
+</html>

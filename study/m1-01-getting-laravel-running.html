@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>M1-01 · Getting Laravel Running — CTF Platform Study</title>
+  <meta name="description" content="What a web backend is, and how to install Laravel and get it running on a blank machine." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%235fe3a1'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body class="page-concept" data-page="m1-01">
+
+  <!-- mobile top bar -->
+  <div class="topbar">
+    <button class="icon-btn" id="nav-toggle" aria-label="Toggle navigation">☰</button>
+    <div class="brand">
+      <div class="brand-mark">⚑</div>
+      <div class="brand-text"><b>CTF Platform</b><span>study</span></div>
+    </div>
+  </div>
+  <div class="nav-overlay" id="nav-overlay"></div>
+
+  <div class="layout">
+
+    <!-- ============ SIDEBAR ============ -->
+    <aside class="sidebar">
+      <a href="index.html" class="brand" style="text-decoration:none">
+        <div class="brand-mark">⚑</div>
+        <div class="brand-text">
+          <b>CTF Platform</b>
+          <span>study companion</span>
+        </div>
+      </a>
+      <nav id="sidebar-nav"><!-- built by app.js --></nav>
+    </aside>
+
+    <!-- ============ MAIN ============ -->
+    <main class="main">
+      <div class="content">
+        <article class="article">
+
+          <!-- ---- header ---- -->
+          <header class="concept-head">
+            <div class="breadcrumb">
+              <a href="index.html">Study</a>
+              <span class="sep">/</span>
+              <span>Milestone 1 — Plumbing</span>
+              <span class="sep">/</span>
+              <span>Concept 01</span>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <span class="pill pill--ms">M1 · Plumbing</span>
+              <span class="pill pill--idx">Concept 1</span>
+            </div>
+            <h1 class="concept-title">Getting Laravel Running</h1>
+            <div class="concept-meta">
+              <span>🎯 &nbsp;Goal: a Laravel backend answering your browser</span>
+              <span>🧰 &nbsp;Includes full install on a blank machine</span>
+              <span>⌨️ &nbsp;No code written today</span>
+            </div>
+          </header>
+
+          <div class="callout callout--key">
+            <span class="callout-tag">Read me first</span>
+            <p>
+              This is the first brick of <strong>Milestone 1: Plumbing</strong> — whose
+              goal is a Laravel backend and a Vue frontend running locally and exchanging
+              one piece of data. <strong>This page</strong> gets the Laravel half installed
+              and alive.
+            </p>
+            <p style="margin-bottom:0">
+              <strong>You will not write any code today.</strong> This concept is the
+              mental model plus the setup. Writing your own code starts next page — and
+              the setup friction here is exactly where beginners quit, so we do it
+              carefully.
+            </p>
+          </div>
+
+          <div class="onpage" id="on-this-page"><!-- built by app.js --></div>
+
+          <!-- ============================================================
+               SECTION 1
+               ============================================================ -->
+          <h2 id="fits" data-toc="Where this fits">
+            <span class="h2-index">01</span>Where this fits
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            Here is the whole system you are going to build. Don't worry about most of
+            it — just see the shape:
+          </p>
+
+          <div class="arch">
+            <div class="arch-node">
+              <div class="an-ico">🖼️</div>
+              <div class="an-name">Vue app</div>
+              <div class="an-tag">frontend · browser</div>
+            </div>
+            <div class="arch-link">
+              <span>HTTP</span><span class="al-line">⟷</span>
+            </div>
+            <div class="arch-node here">
+              <div class="an-ico">⚙️</div>
+              <div class="an-name">Laravel API</div>
+              <div class="an-tag">backend</div>
+              <span class="arch-here-tag">You are here</span>
+            </div>
+            <div class="arch-link">
+              <span>SQL</span><span class="al-line">⟷</span>
+            </div>
+            <div class="arch-node">
+              <div class="an-ico">🗄️</div>
+              <div class="an-name">Database</div>
+              <div class="an-tag">storage</div>
+            </div>
+          </div>
+
+          <p>
+            The <strong>Laravel API</strong> is the brain of the platform: it will hold
+            the rules, talk to the database, validate flag submissions, track scores.
+            The <strong>Vue app</strong> is just the face users see in their browser.
+            Today we build none of that logic — we only get the Laravel box installed
+            and confirm it can answer an HTTP request.
+          </p>
+
+          <!-- ============================================================
+               SECTION 2
+               ============================================================ -->
+          <h2 id="backend" data-toc="What a backend is">
+            <span class="h2-index">02</span>Why this concept exists: what <em>is</em> a backend?
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            You already know this machinery — I'm just naming it in web terms.
+          </p>
+          <p>
+            A <strong>web backend</strong> is nothing exotic. It is
+            <strong>a long-running process that listens on a TCP port and speaks
+            HTTP</strong>. It boots, binds a socket, and sits in a loop waiting for
+            connections — the same socket-server shape you have written in C or Python.
+          </p>
+          <p>
+            And an <strong>HTTP request</strong> is, mentally, just
+            <strong>a function call made over the network</strong>. Hover the pieces:
+          </p>
+
+          <div data-widget="analogy"
+               data-kicker="Interactive"
+               data-title="A request is a function call over the wire"></div>
+
+          <p>
+            The browser makes the "call"; your backend is the "function" that runs and
+            returns a value. That return value is an HTTP <strong>response</strong>: a
+            status code (200 = ok, 404 = not found, …) plus a body (HTML, or JSON, or…).
+          </p>
+
+          <div class="callout callout--key">
+            <span class="callout-tag">The whole job, in one line</span>
+            <p style="margin:0">
+              A backend is one loop: <strong>a request comes in → figure out what's
+              being asked → do the work → send a response.</strong> Routing,
+              controllers, models, auth — all just structure that keeps that loop
+              organised as the app grows.
+            </p>
+          </div>
+
+          <p>
+            Here is that loop running. Pick a request and send it — watch it travel,
+            get routed, and come back:
+          </p>
+
+          <div data-widget="roundtrip"
+               data-kicker="Interactive demo"
+               data-title="The request round-trip"></div>
+
+          <!-- ============================================================
+               SECTION 3
+               ============================================================ -->
+          <h2 id="laravel" data-toc="What Laravel is">
+            <span class="h2-index">03</span>What Laravel is (and what PHP is)
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            You <em>could</em> write that request→response loop by hand. For one
+            endpoint, fine. For a real app — dozens of endpoints, auth, validation, a
+            database — you would reinvent a mountain of plumbing.
+          </p>
+          <p>
+            <strong>Laravel is that plumbing, already built.</strong> It is a
+            <strong>web framework</strong>: a body of code that runs the boring 90%
+            (accept the connection, parse the HTTP request, match it to <em>your</em>
+            code, help you talk to a database, format the response) so you write only
+            the interesting 10% — the actual rules of <em>your</em> app.
+          </p>
+
+          <div class="callout callout--bridge">
+            <span class="callout-tag">Bridge — from what you know</span>
+            <p style="margin:0">
+              <strong>Library vs. framework:</strong> a library is code <em>you call</em>;
+              a framework is code <em>that calls you</em>. You'll write small pieces (a
+              route handler, a model) and Laravel decides when to run them. That
+              inversion of control is the whole idea of a framework.
+            </p>
+          </div>
+
+          <p>
+            Laravel is written in <strong>PHP</strong>. PHP is a C-family language
+            (curly braces, semicolons) built specifically to generate web responses.
+            It will feel familiar fast — the main visible quirk is that
+            <strong>variable names start with <code>$</code></strong>
+            (<code>$user</code>, <code>$score</code>). You will not write any PHP today;
+            we pick up the syntax next page, when you write your first route.
+          </p>
+
+          <!-- ============================================================
+               SECTION 4
+               ============================================================ -->
+          <h2 id="pieces" data-toc="The four pieces">
+            <span class="h2-index">04</span>The four pieces you need
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            To run a Laravel app on a blank machine you need four things. Each one has
+            an equivalent you already know:
+          </p>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Piece</th><th>What it is</th><th>You already know it as</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>PHP</strong></td>
+                  <td>The language runtime Laravel runs on</td>
+                  <td>the JVM / the Python interpreter</td>
+                </tr>
+                <tr>
+                  <td><strong>Composer</strong></td>
+                  <td>PHP's dependency manager + package registry</td>
+                  <td><code>pip</code> / Maven / <code>npm</code></td>
+                </tr>
+                <tr>
+                  <td><strong>Laravel installer</strong></td>
+                  <td>A tool that scaffolds a fresh Laravel app</td>
+                  <td><code>create-react-app</code>, <code>django-admin startproject</code></td>
+                </tr>
+                <tr>
+                  <td><strong>The dev server</strong></td>
+                  <td>A small HTTP server for local development</td>
+                  <td>Flask's <code>app.run()</code></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <p>
+            Installing PHP cleanly on Windows by hand is fiddly, and fighting it is
+            exactly where people quit. So we won't. We'll use <strong>Laravel Herd</strong>
+            — the official, free installer that bundles
+            <strong>PHP + Composer + the Laravel installer</strong> in a single click.
+          </p>
+
+          <!-- ============================================================
+               SECTION 5
+               ============================================================ -->
+          <h2 id="install" data-toc="Install the toolchain">
+            <span class="h2-index">05</span>Setup — install the toolchain
+          </h2>
+          <hr class="section-rule" />
+          <p>This is the blank-machine part. Three steps:</p>
+
+          <ol class="steps">
+            <li>
+              <span class="step-title">Install Laravel Herd.</span>
+              Go to <strong>herd.laravel.com</strong>, download the <strong>Windows</strong>
+              installer, run it, and accept the defaults. The free version is everything
+              you need — ignore "Herd Pro". When it finishes, Herd is running (look for
+              its icon in the system tray). It just put <code>php</code>,
+              <code>composer</code> and <code>laravel</code> onto your system
+              <strong>PATH</strong>.
+            </li>
+            <li>
+              <span class="step-title">Open a fresh terminal.</span>
+              PATH changes only reach terminals opened <em>after</em> the install. Close
+              every PowerShell window you have open, then open a new one. Skipping this
+              is the #1 reason the next step "mysteriously" fails.
+            </li>
+            <li>
+              <span class="step-title">Verify the three tools.</span>
+              Run each command below. You want a version number back, not an error.
+            </li>
+          </ol>
+
+          <p>
+            Here is a safe practice terminal — it behaves like the real thing. Click the
+            <code>php --version</code> chip, then try the others. (It also previews the
+            commands from the next two sections.)
+          </p>
+
+          <div data-widget="terminal"
+               data-kicker="Sandbox"
+               data-title="Practice terminal"></div>
+
+          <p>The real output will look roughly like this (your version numbers will differ — newer is fine):</p>
+
+          <div class="code code--out">
+            <div class="code-bar">
+              <span class="code-lang">expected output</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code>PHP 8.4.x (cli) ...
+Composer version 2.x.x ...
+Laravel Installer 5.x.x</code></pre>
+          </div>
+
+          <div class="callout callout--note">
+            <span class="callout-tag">Note</span>
+            <p style="margin:0">
+              <code>laravel --version</code> shows the <em>installer's</em> version. The
+              <em>framework</em> version of an app you create, you check later from
+              inside the app. Don't expect the two numbers to match.
+            </p>
+          </div>
+
+          <div class="callout callout--warn">
+            <span class="callout-tag">If a command says "not recognized"</span>
+            <p style="margin:0">
+              You almost certainly skipped step 2 — open a brand-new terminal and retry.
+              Still broken after a fresh terminal? <strong>Stop and come back to me.</strong>
+              Don't burn an hour on it — getting unstuck fast is the real skill.
+            </p>
+          </div>
+
+          <!-- ============================================================
+               SECTION 6
+               ============================================================ -->
+          <h2 id="create" data-toc="Create the app">
+            <span class="h2-index">06</span>Create the Laravel app
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            Your code lives in <code>builder/</code> (these teaching pages live in
+            <code>study/</code>). So create the app inside <code>builder/</code>:
+          </p>
+
+          <div class="code">
+            <div class="code-bar">
+              <span class="code-lang">powershell</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code>cd C:\Users\alexg\studying_for_hack_the_box\builder
+laravel new backend</code></pre>
+          </div>
+
+          <p>
+            The installer asks a few setup questions. Exact wording shifts between
+            versions, so match on the <strong>topic</strong> — here is what to choose
+            and why:
+          </p>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>If it asks about…</th><th>Choose…</th><th>Why</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>a <strong>starter kit</strong></td>
+                  <td>None / no starter kit</td>
+                  <td>Starter kits scaffold login &amp; UI <em>for</em> you. You're here
+                      to build that yourself — and our Vue frontend will be its own
+                      separate app, not a bundled one.</td>
+                </tr>
+                <tr>
+                  <td>a <strong>testing framework</strong></td>
+                  <td>Pest (just press Enter)</td>
+                  <td>Doesn't matter to us right now; take the default.</td>
+                </tr>
+                <tr>
+                  <td>a <strong>database</strong></td>
+                  <td>SQLite</td>
+                  <td>SQLite is just a file — zero setup, can't block us. We'll install a
+                      real PostgreSQL/MySQL database properly at Milestone 3, when
+                      challenges actually need one.</td>
+                </tr>
+                <tr>
+                  <td>running <strong>migrations</strong></td>
+                  <td>Yes</td>
+                  <td>"Migrations" is an M3 topic — just say yes. It only means "create
+                      the starter tables". Ignore the word for now.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <p>
+            When it finishes you'll have a new folder, <code>builder/backend/</code>,
+            full of files.
+          </p>
+
+          <div class="callout callout--note">
+            <span class="callout-tag">Fallback</span>
+            <p style="margin:0">
+              If <code>php</code> and <code>composer</code> work but <code>laravel</code>
+              is somehow not found, you can create the app with
+              <code>composer create-project laravel/laravel backend</code> instead — it
+              does the same job.
+            </p>
+          </div>
+
+          <div class="callout callout--warn">
+            <span class="callout-tag">Heads-up — not a problem</span>
+            <p style="margin:0">
+              The installer creates its <em>own</em> git repo inside
+              <code>builder/backend/</code>, so you'll have a git repo nested inside your
+              main project repo. That's harmless for now — just know it's there. We'll
+              decide how to handle git for the whole project later; don't touch it.
+            </p>
+          </div>
+
+          <!-- ============================================================
+               SECTION 7
+               ============================================================ -->
+          <h2 id="run" data-toc="Run it">
+            <span class="h2-index">07</span>Run it
+          </h2>
+          <hr class="section-rule" />
+
+          <div class="code">
+            <div class="code-bar">
+              <span class="code-lang">powershell</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code>cd backend
+php artisan serve</code></pre>
+          </div>
+
+          <p>
+            <code>artisan</code> is <strong>Laravel's command-line tool</strong> — it
+            ships inside every Laravel app and you'll use it constantly. <code>serve</code>
+            is one of its commands; it starts the local dev server. You'll see something
+            like:
+          </p>
+
+          <div class="code code--out">
+            <div class="code-bar">
+              <span class="code-lang">expected output</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code>   INFO  Server running on [http://127.0.0.1:8000].
+
+   Press Ctrl+C to stop the server</code></pre>
+          </div>
+
+          <p>
+            Open <strong>the address it printed</strong> (usually
+            <code>http://127.0.0.1:8000</code>) in your browser. You should see the
+            <strong>Laravel welcome screen</strong>. That page was just <em>generated by
+            your own machine</em> and sent over HTTP to your browser.
+          </p>
+
+          <p>That URL is worth dissecting — every part of it is something you already know:</p>
+
+          <div data-widget="url-anatomy"
+               data-kicker="Interactive"
+               data-title="Anatomy of the address bar"></div>
+
+          <div class="callout callout--note">
+            <span class="callout-tag">Two things to internalise</span>
+            <p>
+              <strong>This terminal is now busy.</strong> The server runs in the
+              foreground and holds the terminal until you stop it. To run other
+              commands, open a <em>second</em> terminal. To stop the server, press
+              <kbd>Ctrl</kbd> + <kbd>C</kbd> in this one.
+            </p>
+            <p style="margin-bottom:0">
+              <strong>Nothing here is new networking.</strong> <code>127.0.0.1</code> is
+              the loopback address; <code>8000</code> is the TCP port the server bound.
+              Same socket model as any server you've written.
+            </p>
+          </div>
+
+          <!-- ============================================================
+               SECTION 8
+               ============================================================ -->
+          <h2 id="happened" data-toc="What just happened">
+            <span class="h2-index">08</span>What actually just happened
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            When you loaded that page, here is the chain of events — five steps, all on
+            your own machine:
+          </p>
+
+          <div class="flow">
+            <div class="flow-step">
+              <div class="flow-rail"><div class="flow-bullet">1</div><div class="flow-line"></div></div>
+              <div class="flow-body">
+                <div class="fb-title">You open the URL</div>
+                <div class="fb-text">The browser opens a TCP connection to 127.0.0.1:8000 and sends <code>GET /</code>.</div>
+              </div>
+            </div>
+            <div class="flow-step">
+              <div class="flow-rail"><div class="flow-bullet">2</div><div class="flow-line"></div></div>
+              <div class="flow-body">
+                <div class="fb-title">The dev server receives it</div>
+                <div class="fb-text">The PHP process started by <code>php artisan serve</code> accepts the connection and hands the request to Laravel.</div>
+              </div>
+            </div>
+            <div class="flow-step">
+              <div class="flow-rail"><div class="flow-bullet">3</div><div class="flow-line"></div></div>
+              <div class="flow-body">
+                <div class="fb-title">Laravel routes it</div>
+                <div class="fb-text">Laravel looks for a route matching <code>/</code> and finds the default welcome route.</div>
+              </div>
+            </div>
+            <div class="flow-step">
+              <div class="flow-rail"><div class="flow-bullet">4</div><div class="flow-line"></div></div>
+              <div class="flow-body">
+                <div class="fb-title">Laravel builds the response</div>
+                <div class="fb-text">It generates the welcome page's HTML <em>in memory</em> and returns a <code>200 OK</code> response.</div>
+              </div>
+            </div>
+            <div class="flow-step">
+              <div class="flow-rail"><div class="flow-bullet">5</div><div class="flow-line"></div></div>
+              <div class="flow-body">
+                <div class="fb-title">The browser paints it</div>
+                <div class="fb-text">The HTML travels back over HTTP; the browser parses it and shows you the page.</div>
+              </div>
+            </div>
+          </div>
+
+          <p>
+            The welcome page is <strong>not a file your browser opened</strong>. It is
+            HTML <strong>built on the fly</strong> by a running PHP process and handed
+            back over HTTP. Kill that process and the page is gone. That
+            <em>liveness</em> is the backend — so prove it to yourself. Stop the server,
+            then reload the browser, and watch what happens:
+          </p>
+
+          <div data-widget="liveness"
+               data-kicker="Interactive demo"
+               data-title="Is it alive? Stop the server, then reload"></div>
+
+          <!-- ============================================================
+               SECTION 9
+               ============================================================ -->
+          <h2 id="check" data-toc="Check yourself">
+            <span class="h2-index">09</span>Check yourself
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            Don't skip this — these three predictions <em>are</em> the concept. Think
+            each one through before you pick. (Question 2 you can test for real in the
+            demo just above.)
+          </p>
+
+          <div data-widget="quiz" data-kicker="Quiz" data-title="Predict the behaviour">
+            <script type="application/json">
+            {
+              "questions": [
+                {
+                  "q": "The dev server is running in Terminal A. You open Terminal B and run `php artisan serve` again. What happens?",
+                  "options": [
+                    "Both servers happily share port 8000.",
+                    "The second one fails to bind 8000 — it errors, or starts on a different port like 8001.",
+                    "Terminal A's server is replaced by Terminal B's."
+                  ],
+                  "answer": 1,
+                  "why": "A TCP port has exactly one listener. Port 8000 is already bound by Terminal A's process, so the second one can't have it — the same 'address already in use' you've hit writing socket code."
+                },
+                {
+                  "q": "You press Ctrl+C in the terminal running the server, then refresh the browser tab showing the welcome page. What do you see?",
+                  "options": [
+                    "The same welcome page — the browser saved it.",
+                    "A blank white page.",
+                    "A connection error — 'This site can't be reached / connection refused'."
+                  ],
+                  "answer": 2,
+                  "why": "Ctrl+C killed the listening process. Nothing is on port 8000 anymore, so the browser's connection is refused. The page was never a saved file — it had no independent existence."
+                },
+                {
+                  "q": "While the welcome page was showing, what produced that HTML?",
+                  "options": [
+                    "A .html file on disk that the browser opened directly.",
+                    "A running PHP process generated it in memory, on demand, and sent it over HTTP.",
+                    "The browser built it from the URL."
+                  ],
+                  "answer": 1,
+                  "why": "There is no welcome.html being served. A live PHP process — started by php artisan serve, with Laravel routing the request — generated the HTML on demand and returned it. Kill the process and the page is gone."
+                }
+              ]
+            }
+            </script>
+          </div>
+
+          <!-- ============================================================
+               SECTION 10
+               ============================================================ -->
+          <h2 id="checkpoint" data-toc="Checkpoint">
+            <span class="h2-index">10</span>Checkpoint — go build
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            Go to <code>builder/</code> and get the backend standing. Tick each step as
+            you finish it — your progress is saved on this page.
+          </p>
+
+          <div data-widget="checklist"
+               data-progress-id="m1-01"
+               data-kicker="Checkpoint"
+               data-title="Get the Laravel backend running">
+            <script type="application/json">
+            {
+              "items": [
+                "Install <b>Laravel Herd</b>, then in a fresh terminal confirm <code>php --version</code>, <code>composer --version</code> and <code>laravel --version</code> all return a version number.",
+                "Create the app: run <code>laravel new backend</code> inside <code>builder/</code> — choose <b>no starter kit</b>, Pest, <b>SQLite</b>.",
+                "Run <code>php artisan serve</code> and open the address it prints — see the Laravel welcome screen in your browser.",
+                "Do the three <b>Check yourself</b> predictions for real, and confirm your answers."
+              ]
+            }
+            </script>
+          </div>
+
+          <div class="callout callout--key">
+            <span class="callout-tag">You're done when</span>
+            <p style="margin:0">
+              The welcome page loads, <em>and</em> you can explain in your own words
+              what process is serving it and what happens to it when you press
+              <kbd>Ctrl</kbd>+<kbd>C</kbd>.
+            </p>
+          </div>
+
+          <div class="callout callout--warn">
+            <span class="callout-tag">If you get stuck on install</span>
+            <p style="margin:0">
+              Stop and come back — tell me the exact command and the exact error.
+              Silently fighting setup for an hour is the trap; getting unstuck fast is
+              the skill.
+            </p>
+          </div>
+
+          <p>
+            When it's running, come back and tell me. <strong>Then</strong> I'll teach
+            the next concept: writing your <em>own</em> route, so the server returns
+            something <em>you</em> defined — your first real PHP.
+          </p>
+
+          <!-- ---- page end ---- -->
+          <nav class="page-end">
+            <a class="btn btn--ghost" href="index.html">← All milestones</a>
+            <span class="pe-label">Next concept unlocks when this checkpoint is done</span>
+          </nav>
+
+          <footer class="site-foot">
+            <span>M1-01 · Getting Laravel Running</span>
+            <span class="mono">CTF Platform — study site</span>
+          </footer>
+
+        </article>
+      </div>
+    </main>
+
+  </div>
+
+  <script src="assets/js/app.js"></script>
+  <script src="assets/js/widgets.js"></script>
+</body>
+</html>
