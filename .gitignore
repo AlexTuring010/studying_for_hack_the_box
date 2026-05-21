@@ -1,0 +1,33 @@
+# Claude Code local config and project notes (kept off the public repo)
+.claude/
+CLAUDE.md
+
+# Dependencies
+node_modules/
+vendor/
+
+# Environment files (never commit real secrets)
+.env
+.env.*
+!.env.example
+
+# Build output
+dist/
+.vite/
+public/build/
+public/hot
+
+# Local database
+*.sqlite
+*.sqlite-journal
+
+# Caches and logs
+*.log
+.phpunit.result.cache
+.phpunit.cache/
+
+# Editor and OS files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
