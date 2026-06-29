@@ -49,6 +49,13 @@
           sub: "What a backend is, install the toolchain, first run",
           file: "m1-01-getting-laravel-running.html",
           state: "available"
+        },
+        {
+          code: "M1-02", id: "m1-02",
+          title: "Your First Route",
+          sub: "The two doors into the app, routing, and your first PHP",
+          file: "m1-02-your-first-route.html",
+          state: "available"
         }
       ]
     },

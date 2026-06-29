@@ -767,10 +767,11 @@
       });
     });
 
+    var nextText = root.getAttribute("data-next") ||
+      "Go tell Claude it runs. Next concept: writing your own route — your first real PHP.";
     var banner = el("div", { class: "check-done-banner" }, [
       el("div", { class: "cdb-title", text: "✓  Checkpoint complete" }),
-      el("div", { class: "cdb-sub",
-        text: "Go tell Claude it runs. Next concept: writing your own route — your first real PHP." })
+      el("div", { class: "cdb-sub", text: nextText })
     ]);
 
     body.appendChild(ul);
