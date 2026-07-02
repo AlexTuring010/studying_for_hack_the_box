@@ -125,6 +125,13 @@
           sub: "Password hashing, the model's hashed cast, Eloquent create",
           file: "m2-03-hashing-and-saving-the-user.html",
           state: "available"
+        },
+        {
+          code: "M2-04", id: "m2-04",
+          title: "Auth Tokens & Installing Sanctum",
+          sub: "Stateless HTTP, bearer tokens, and the safe Sanctum setup",
+          file: "m2-04-auth-tokens-and-sanctum.html",
+          state: "available"
         }
       ]
     },

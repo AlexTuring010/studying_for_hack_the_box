@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>M2-04 · Auth Tokens &amp; Installing Sanctum — CTF Platform Study</title>
+  <meta name="description" content="Why stateless HTTP needs a token to keep you logged in, what a bearer token is, and installing Laravel Sanctum the safe way (no install:api) — plus proving it works in tinker." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%235fe3a1'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body class="page-concept" data-page="m2-04">
+
+  <!-- mobile top bar -->
+  <div class="topbar">
+    <button class="icon-btn" id="nav-toggle" aria-label="Toggle navigation">☰</button>
+    <div class="brand">
+      <div class="brand-mark">⚑</div>
+      <div class="brand-text"><b>CTF Platform</b><span>study</span></div>
+    </div>
+  </div>
+  <div class="nav-overlay" id="nav-overlay"></div>
+
+  <div class="layout">
+
+    <!-- ============ SIDEBAR ============ -->
+    <aside class="sidebar">
+      <a href="index.html" class="brand" style="text-decoration:none">
+        <div class="brand-mark">⚑</div>
+        <div class="brand-text">
+          <b>CTF Platform</b>
+          <span>study companion</span>
+        </div>
+      </a>
+      <nav id="sidebar-nav"><!-- built by app.js --></nav>
+    </aside>
+
+    <!-- ============ MAIN ============ -->
+    <main class="main">
+      <div class="content">
+        <article class="article">
+
+          <!-- ---- header ---- -->
+          <header class="concept-head">
+            <div class="breadcrumb">
+              <a href="index.html">Study</a>
+              <span class="sep">/</span>
+              <span>Milestone 2 — Users Exist</span>
+              <span class="sep">/</span>
+              <span>Concept 04</span>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <span class="pill pill--ms">M2 · Users Exist</span>
+              <span class="pill pill--idx">Concept 4</span>
+            </div>
+            <h1 class="concept-title">Auth Tokens &amp; Installing Sanctum</h1>
+            <div class="concept-meta">
+              <span>🎯 &nbsp;Goal: the plumbing that keeps a user logged in</span>
+              <span>🆕 &nbsp;A new package — installed the safe way</span>
+              <span>🧩 &nbsp;Concept: stateless HTTP &amp; bearer tokens</span>
+            </div>
+          </header>
+
+          <div class="callout callout--key">
+            <span class="callout-tag">Read me first</span>
+            <p>
+              You can create users. Now they need to <strong>log in</strong> — and, crucially,
+              <em>stay</em> logged in across page loads and API calls. That needs a way to prove
+              "I'm still me" on every request. The answer is an <strong>auth token</strong>, and
+              the tool that issues them in Laravel is <strong>Sanctum</strong>.
+            </p>
+            <p style="margin-bottom:0">
+              This lesson is the <em>concept</em> plus <em>setup</em> — installed carefully,
+              because the usual one-command installer would clash with the API routing you wired
+              by hand. Next lesson you'll build the login endpoint that actually hands out a token.
+            </p>
+          </div>
+
+          <div class="onpage" id="on-this-page"><!-- built by app.js --></div>
+
+          <!-- ============================================================
+               SECTION 1 — stateless HTTP
+               ============================================================ -->
+          <h2 id="stateless" data-toc="HTTP forgets you">
+            <span class="h2-index">01</span>The problem: HTTP forgets you instantly
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            HTTP is <strong>stateless</strong>: every request is an island. Your server handles a
+            request, sends a response, and remembers <em>nothing</em> about you for the next one.
+            So the instant after a successful login, the very next request arrives as a total
+            stranger. How does request #2 know it's the same person who logged in on request #1?
+          </p>
+          <p>There are two classic answers:</p>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th></th><th>Sessions (cookies)</th><th>Tokens</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><b>Who remembers</b></td><td>the server (keeps a session; browser holds a cookie)</td><td>the client (holds a token string)</td></tr>
+                <tr><td><b>Sent how</b></td><td>a cookie, automatically by the browser</td><td>an <code>Authorization</code> header you set</td></tr>
+                <tr><td><b>Best fit</b></td><td>a classic server-rendered site</td><td>a separate <strong>SPA + API</strong> — like yours</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <p style="margin-bottom:0">
+            Because your Vue app and Laravel API are two separate origins talking over HTTP,
+            <strong>tokens</strong> are the natural fit — and the path we'll take.
+          </p>
+
+          <!-- ============================================================
+               SECTION 2 — what a token is
+               ============================================================ -->
+          <h2 id="token" data-toc="What a token is">
+            <span class="h2-index">02</span>What an auth token is
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            A token is a long, random secret string the server hands you when you log in. The
+            client stores it, and sends it on <em>every</em> later request in a header:
+          </p>
+
+          <div class="code">
+            <div class="code-bar">
+              <span class="code-lang">how the client proves who it is, every request</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code>Authorization: Bearer 3|k9Xf2p…the-long-random-token…</code></pre>
+          </div>
+
+          <p>
+            The server reads that header, looks the token up, and knows who you are — no session
+            needed. The word <strong>"bearer"</strong> is the key idea: whoever <em>bears</em>
+            (holds) the token <em>is</em> treated as you. It's a wristband at a festival — you
+            prove your ID once at the gate, get a wristband, and after that you just flash the
+            wristband instead of re-proving yourself.
+          </p>
+
+          <div class="callout callout--key">
+            <span class="callout-tag">Security consequences (your HTB lens)</span>
+            <p style="margin:0">
+              Two things follow from "whoever holds it is you." <strong>One:</strong> a token is a
+              live credential — leak it (in a URL, a log, an insecure store) and someone else
+              becomes you, so it travels over HTTPS and is stored carefully. <strong>Two:</strong>
+              the server never stores the token in plaintext either — Sanctum keeps only a
+              <em>hash</em> of it in the database (SHA-256). Sound familiar? Same rule as passwords,
+              same rule as flags: <strong>never store the raw secret, only a fingerprint.</strong>
+            </p>
+          </div>
+
+          <!-- ============================================================
+               SECTION 3 — sanctum
+               ============================================================ -->
+          <h2 id="sanctum" data-toc="Sanctum, the tool">
+            <span class="h2-index">03</span>Sanctum: Laravel's token issuer
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            <strong>Laravel Sanctum</strong> is the official package for API tokens. It gives you
+            three things: a <code>personal_access_tokens</code> table to store tokens (hashed), a
+            <code>createToken()</code> method on your <code>User</code> model, and a guard
+            (<code>auth:sanctum</code>) that checks the <code>Authorization</code> header on
+            protected routes. Today you install it and wire the model; issuing and checking tokens
+            come in the next two lessons.
+          </p>
+
+          <div class="callout callout--note">
+            <span class="callout-tag">Sanctum has two modes — we want the simple one</span>
+            <p style="margin:0">
+              Sanctum can do cookie-based "SPA authentication" (with stateful domains, a CSRF
+              cookie, etc.) <em>or</em> plain <strong>API tokens</strong>. We're using
+              <strong>tokens</strong> — simpler, and a perfect fit for a separate frontend. So
+              you'll ignore anything about <code>SANCTUM_STATEFUL_DOMAINS</code>,
+              <code>config/sanctum.php</code>, or a CSRF cookie: <strong>token auth needs zero
+              config</strong>. Install, migrate, add a trait — done.
+            </p>
+          </div>
+
+          <!-- ============================================================
+               SECTION 4 — setup
+               ============================================================ -->
+          <h2 id="setup" data-toc="Installing it (safely)">
+            <span class="h2-index">04</span>Installing Sanctum — the safe path
+          </h2>
+          <hr class="section-rule" />
+
+          <div class="callout callout--warn">
+            <span class="callout-tag">⛔ Do NOT run <code>php artisan install:api</code> here</span>
+            <p style="margin:0">
+              You'll see that command in most tutorials — but you already created
+              <code>routes/api.php</code> and registered <code>api:</code> in
+              <code>bootstrap/app.php</code> by hand. Plain <code>install:api</code> would just
+              print a confusing red "API routes file already exists" error, and running it with
+              <code>--force</code> would <strong>overwrite your <code>api.php</code></strong>
+              (destroying <code>/register</code>) <em>and</em> duplicate your routing into a fatal
+              error that stops the whole app booting. Use the three manual steps below instead —
+              they can't touch your routes.
+            </p>
+          </div>
+
+          <p>Three steps, run in <code>builder/backend/</code>:</p>
+
+          <div class="code">
+            <div class="code-bar">
+              <span class="code-lang">1 — install the package (needs internet)</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code>composer require laravel/sanctum:^4.0</code></pre>
+          </div>
+
+          <div class="code">
+            <div class="code-bar">
+              <span class="code-lang">2 — create its table (Sanctum ships the migration; Laravel loads it)</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code>php artisan migrate
+# then confirm it landed:
+php artisan migrate:status        # look for ...create_personal_access_tokens_table  → Ran</code></pre>
+          </div>
+
+          <p>
+            <strong>Step 3 — give your <code>User</code> the token power.</strong> In
+            <code>app/Models/User.php</code>, import <code>Laravel\Sanctum\HasApiTokens</code> at
+            the top, and add <code>HasApiTokens</code> to the model's existing trait line (the one
+            that currently reads <code>use HasFactory, Notifiable;</code>). That trait is what adds
+            the <code>createToken()</code> method — without it, issuing a token later would fatal.
+            <em>(You make this edit; it's the same "add to the trait list" shape you can see
+            already in the file.)</em>
+          </p>
+
+          <!-- ============================================================
+               SECTION 5 — prove it in tinker
+               ============================================================ -->
+          <h2 id="tinker" data-toc="Prove it in tinker">
+            <span class="h2-index">05</span>Prove the plumbing works (before any endpoint)
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            Before you build a login endpoint on top, confirm the foundation works in isolation.
+            <code>php artisan tinker</code> lets you poke your app live. Grab your registered user
+            and mint a token:
+          </p>
+
+          <div class="code">
+            <div class="code-bar">
+              <span class="code-lang">in php artisan tinker</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code>$u = \App\Models\User::first();
+$u->createToken('test')->plainTextToken;     // → "1|abc123…"  (your first token!)</code></pre>
+          </div>
+
+          <p>
+            That string is the token a client would carry. Two things to notice, both
+            reinforcing the security theme:
+          </p>
+          <ul style="line-height:1.7">
+            <li>The format is <code>&lt;id&gt;|&lt;random&gt;</code>. The <code>plainTextToken</code>
+              is shown <strong>once</strong> — right now — and never again.</li>
+            <li>Look at what got <em>stored</em>: <code>php artisan db:table
+              personal_access_tokens</code> shows a row, but the <code>token</code> column holds a
+              <strong>hash</strong>, not the string you just saw. Same one-way principle as
+              passwords. If the DB leaks, the tokens in it can't be used directly.</li>
+          </ul>
+
+          <!-- ============================================================
+               SECTION 6 — check yourself
+               ============================================================ -->
+          <h2 id="check" data-toc="Check yourself">
+            <span class="h2-index">06</span>Check yourself
+          </h2>
+          <hr class="section-rule" />
+          <p>Predict each before revealing it.</p>
+
+          <div data-widget="quiz" data-kicker="Quiz" data-title="Predict the behaviour">
+            <script type="application/json">
+            {
+              "questions": [
+                {
+                  "q": "Why do we need a token to stay logged in?",
+                  "options": [
+                    "Tokens make requests faster.",
+                    "HTTP is stateless — the server remembers nothing between requests, so the client must re-prove who it is each time.",
+                    "Because Laravel requires one for every route."
+                  ],
+                  "answer": 1,
+                  "why": "Each HTTP request is independent; the server forgets you the moment it responds. A token (sent every request) is how request #2 proves it's the same person who logged in on request #1."
+                },
+                {
+                  "q": "How does the client send its token on each request?",
+                  "options": [
+                    "In the URL as a query string.",
+                    "In the request body.",
+                    "In the Authorization header, as 'Bearer <token>'."
+                  ],
+                  "answer": 2,
+                  "why": "The standard is the Authorization: Bearer <token> header. Putting it in the URL would leak it into logs and browser history — exactly what you don't do with a live credential."
+                },
+                {
+                  "q": "Sanctum stores your tokens in the personal_access_tokens table. Plaintext or hashed?",
+                  "options": [
+                    "Plaintext, so the server can send it back.",
+                    "Hashed — the plaintext is shown once at creation; the DB keeps only a hash.",
+                    "Encrypted and reversible."
+                  ],
+                  "answer": 1,
+                  "why": "Same rule as passwords and (later) flags: never store the raw secret. Sanctum hashes the token; you see the plaintext only once when createToken() returns it. A leaked DB doesn't hand over usable tokens."
+                },
+                {
+                  "q": "Should you run `php artisan install:api --force` to set up Sanctum here?",
+                  "options": [
+                    "Yes — it's the official installer.",
+                    "No — you wired api routing by hand; --force would overwrite your api.php (destroying /register) and break the app. Use the manual steps.",
+                    "It doesn't matter either way."
+                  ],
+                  "answer": 1,
+                  "why": "Because routes/api.php and the api: routing line already exist, --force overwrites your routes and injects a duplicate routing argument that fatals the app on boot. composer require + migrate + the trait is all you need, and it can't touch your routes."
+                }
+              ]
+            }
+            </script>
+          </div>
+
+          <!-- ============================================================
+               SECTION 7 — checkpoint
+               ============================================================ -->
+          <h2 id="checkpoint" data-toc="Checkpoint">
+            <span class="h2-index">07</span>Checkpoint — install &amp; verify Sanctum
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            Set up the token foundation and prove it works — no endpoint yet. Run in
+            <code>builder/backend/</code>.
+          </p>
+
+          <div data-widget="checklist"
+               data-progress-id="m2-04"
+               data-next="Tell Claude Sanctum is installed and you minted a token in tinker. Next: the LOGIN endpoint — verify email+password with Hash::check and hand back one of these tokens (with a security-conscious 'wrong credentials' response)."
+               data-kicker="Checkpoint"
+               data-title="Stand up token auth">
+            <script type="application/json">
+            {
+              "items": [
+                "Run <code>composer require laravel/sanctum:^4.0</code> (needs internet). Do <b>NOT</b> run <code>php artisan install:api</code>, and never <code>--force</code>.",
+                "Run <code>php artisan migrate</code>, then <code>php artisan migrate:status</code> — confirm <code>...create_personal_access_tokens_table</code> shows <b>Ran</b>.",
+                "In <code>app/Models/User.php</code>: import <code>Laravel\\Sanctum\\HasApiTokens</code> and add <code>HasApiTokens</code> to the existing <code>use HasFactory, Notifiable;</code> trait line.",
+                "Mint a token in <code>php artisan tinker</code>: <code>\\App\\Models\\User::first()->createToken('test')->plainTextToken</code> → you get an <code>id|random</code> string.",
+                "Confirm it persisted &amp; is hashed: <code>php artisan db:table personal_access_tokens</code> (a row exists) — the stored <code>token</code> is a hash, not the string you saw.",
+                "Commit it (e.g. <code>chore(backend): add Laravel Sanctum for API tokens</code>) and push."
+              ]
+            }
+            </script>
+          </div>
+
+          <div class="callout callout--key">
+            <span class="callout-tag">You're done when</span>
+            <p style="margin:0">
+              Sanctum is installed, the <code>personal_access_tokens</code> table exists, your
+              <code>User</code> model can <code>createToken()</code> (proven in tinker), and you can
+              explain why a stateless API needs a token and why the token is stored hashed.
+            </p>
+          </div>
+
+          <div class="callout callout--warn">
+            <span class="callout-tag">If a step misbehaves</span>
+            <p style="margin:0">
+              <b>composer fails?</b> Check your internet and that <code>composer</code> is on your
+              PATH. <b><code>migrate:status</code> doesn't list the token migration?</b> Publish it
+              first, then migrate again: <code>php artisan vendor:publish --provider
+              'Laravel\Sanctum\SanctumServiceProvider'</code> (single backslashes, single-quoted),
+              then <code>php artisan migrate</code>. <b><code>createToken() not found</code> in
+              tinker?</b> The <code>HasApiTokens</code> trait/import is missing from
+              <code>User.php</code>. Paste me the exact error.
+            </p>
+          </div>
+
+          <p>
+            Once you can mint a token, come back and tell me. <strong>Then</strong> the endpoint
+            that makes it real: <strong>login</strong> — take an email and password, verify them
+            with <code>Hash::check()</code>, and on success return one of these tokens. We'll also
+            handle "wrong credentials" the <em>secure</em> way — without leaking whether it was the
+            email or the password that was wrong (a small anti-enumeration detail attackers love
+            when it's missing).
+          </p>
+
+          <!-- ---- page end ---- -->
+          <nav class="page-end">
+            <a class="btn btn--ghost" href="m2-03-hashing-and-saving-the-user.html">← M2-03</a>
+            <span class="pe-label">Next concept unlocks when this checkpoint is done</span>
+          </nav>
+
+          <footer class="site-foot">
+            <span>M2-04 · Auth Tokens &amp; Installing Sanctum</span>
+            <span class="mono">CTF Platform — study site</span>
+          </footer>
+
+        </article>
+      </div>
+    </main>
+
+  </div>
+
+  <script src="assets/js/app.js"></script>
+  <script src="assets/js/widgets.js"></script>
+</body>
+</html>
