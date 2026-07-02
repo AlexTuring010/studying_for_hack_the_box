@@ -228,12 +228,28 @@ php artisan migrate:status        # look for ...create_personal_access_tokens_ta
           </p>
 
           <p>
-            <strong>Step 3 — give your <code>User</code> the token power.</strong> In
-            <code>app/Models/User.php</code>, import <code>Laravel\Sanctum\HasApiTokens</code> at
-            the top, and add <code>HasApiTokens</code> to the model's existing trait line (the one
-            that currently reads <code>use HasFactory, Notifiable;</code>). That trait is what adds
-            the <code>createToken()</code> method — without it, issuing a token later would fatal.
-            <em>(You make this edit yourself.)</em>
+            <strong>Step 3 — give your <code>User</code> the token power.</strong> This is
+            boilerplate Sanctum <em>wiring</em>, not a build task — so here's exactly what to do in
+            <code>app/Models/User.php</code>. Add the import up top, and add the trait to the
+            in-class trait line:
+          </p>
+          <div class="code">
+            <div class="code-bar">
+              <span class="code-lang">app/Models/User.php — two edits</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code>// 1) with the other top-of-file imports:
+use Laravel\Sanctum\HasApiTokens;
+
+// 2) change the in-class trait line from:
+    use HasFactory, Notifiable;
+// ...to:
+    use HasApiTokens, HasFactory, Notifiable;</code></pre>
+          </div>
+          <p>
+            That trait is what adds the <code>createToken()</code> method — without it, issuing a
+            token would fatal. <em>(Wondering why there are two <code>use</code>s? That's the next
+            callout — and the whole of <a href="m2-05-anatomy-of-a-model.html">M2-05</a>.)</em>
           </p>
 
           <div class="callout callout--note">
