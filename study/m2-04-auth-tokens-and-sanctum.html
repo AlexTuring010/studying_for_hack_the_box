@@ -298,10 +298,14 @@ $u->createToken('test')->plainTextToken;     // → "1|abc123…"  (your first t
           <ul style="line-height:1.7">
             <li>The format is <code>&lt;id&gt;|&lt;random&gt;</code>. The <code>plainTextToken</code>
               is shown <strong>once</strong> — right now — and never again.</li>
-            <li>Look at what got <em>stored</em>: <code>php artisan db:table
-              personal_access_tokens</code> shows a row, but the <code>token</code> column holds a
-              <strong>hash</strong>, not the string you just saw. Same one-way principle as
-              passwords. If the DB leaks, the tokens in it can't be used directly.</li>
+            <li>Look at what got <em>stored</em>: in tinker,
+              <code>DB::table('personal_access_tokens')-&gt;first()</code> returns the row, and its
+              <code>token</code> field is a long <strong>hash</strong> (SHA-256) — not the
+              <code>&lt;id&gt;|&lt;random&gt;</code> string you just saw. Same one-way principle as
+              passwords: if the DB leaks, the stored tokens can't be used directly. (Note:
+              <code>php artisan db:table personal_access_tokens</code> only lists the table's
+              <em>columns</em> and row count, not values — so use the tinker query to see the token
+              itself.)</li>
           </ul>
 
           <!-- ============================================================
@@ -386,7 +390,7 @@ $u->createToken('test')->plainTextToken;     // → "1|abc123…"  (your first t
                 "Publish Sanctum's migration (the <code>vendor:publish --provider</code> command in Step 2 — Sanctum 4.x doesn't auto-load it), then <code>php artisan migrate</code>, and confirm <code>php artisan migrate:status</code> shows <code>...create_personal_access_tokens_table</code> as <b>Ran</b>.",
                 "In <code>app/Models/User.php</code>: import <code>Laravel\\Sanctum\\HasApiTokens</code> and add <code>HasApiTokens</code> to the existing <code>use HasFactory, Notifiable;</code> trait line.",
                 "Mint a token in <code>php artisan tinker</code>: <code>\\App\\Models\\User::first()->createToken('test')->plainTextToken</code> → you get an <code>id|random</code> string.",
-                "Confirm it persisted &amp; is hashed: <code>php artisan db:table personal_access_tokens</code> (a row exists) — the stored <code>token</code> is a hash, not the string you saw.",
+                "Confirm it persisted &amp; is hashed: in tinker, <code>DB::table('personal_access_tokens')->first()</code> — the <code>token</code> field is a long hash, not the <code>id|random</code> string from createToken. (<code>php artisan db:table personal_access_tokens</code> confirms a row exists but doesn't show values.)",
                 "Commit it (e.g. <code>chore(backend): add Laravel Sanctum for API tokens</code>) and push."
               ]
             }
