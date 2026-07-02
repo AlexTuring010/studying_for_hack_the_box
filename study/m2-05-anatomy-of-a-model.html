@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>M2-05 · Anatomy of a Model — CTF Platform Study</title>
+  <meta name="description" content="A line-by-line tour of your User.php: what an Eloquent model is, namespaces and imports, attributes vs properties, extends Authenticatable, traits, and casts — the file you keep editing, demystified." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%235fe3a1'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body class="page-concept" data-page="m2-05">
+
+  <!-- mobile top bar -->
+  <div class="topbar">
+    <button class="icon-btn" id="nav-toggle" aria-label="Toggle navigation">☰</button>
+    <div class="brand">
+      <div class="brand-mark">⚑</div>
+      <div class="brand-text"><b>CTF Platform</b><span>study</span></div>
+    </div>
+  </div>
+  <div class="nav-overlay" id="nav-overlay"></div>
+
+  <div class="layout">
+
+    <!-- ============ SIDEBAR ============ -->
+    <aside class="sidebar">
+      <a href="index.html" class="brand" style="text-decoration:none">
+        <div class="brand-mark">⚑</div>
+        <div class="brand-text">
+          <b>CTF Platform</b>
+          <span>study companion</span>
+        </div>
+      </a>
+      <nav id="sidebar-nav"><!-- built by app.js --></nav>
+    </aside>
+
+    <!-- ============ MAIN ============ -->
+    <main class="main">
+      <div class="content">
+        <article class="article">
+
+          <!-- ---- header ---- -->
+          <header class="concept-head">
+            <div class="breadcrumb">
+              <a href="index.html">Study</a>
+              <span class="sep">/</span>
+              <span>Milestone 2 — Users Exist</span>
+              <span class="sep">/</span>
+              <span>Concept 05</span>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <span class="pill pill--ms">M2 · Users Exist</span>
+              <span class="pill pill--idx">Concept 5</span>
+            </div>
+            <h1 class="concept-title">Anatomy of a Model</h1>
+            <div class="concept-meta">
+              <span>🎯 &nbsp;Goal: <code>User.php</code> stops being a black box</span>
+              <span>🔬 &nbsp;A line-by-line tour of your real file</span>
+              <span>🧩 &nbsp;Concept: what an Eloquent model is</span>
+            </div>
+          </header>
+
+          <div class="callout callout--key">
+            <span class="callout-tag">Read me first</span>
+            <p>
+              We've been editing <code>app/Models/User.php</code> — adding config, a cast, a trait —
+              without ever properly touring it. Fair complaint. A <strong>model</strong> is the
+              file type you'll edit most in Laravel, so let's dissect <em>your</em> <code>User.php</code>
+              part by part until every line makes sense. A nice side effect: the Sanctum trait edit
+              from the last lesson becomes obvious.
+            </p>
+            <p style="margin-bottom:0">
+              This one's about <em>understanding</em>, not building — read it, then poke your model
+              in <code>tinker</code> to watch the pieces behave.
+            </p>
+          </div>
+
+          <div class="onpage" id="on-this-page"><!-- built by app.js --></div>
+
+          <!-- ============================================================
+               SECTION 1 — what a model is
+               ============================================================ -->
+          <h2 id="what" data-toc="What a model is">
+            <span class="h2-index">01</span>What an Eloquent model actually is
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            A <strong>model</strong> is a PHP class that represents <strong>one database table</strong>.
+            <code>User</code> stands for the <code>users</code> table; one <em>instance</em> of the
+            class is one <em>row</em>. Instead of writing SQL, you talk to the table through the class:
+          </p>
+
+          <div class="code">
+            <div class="code-bar">
+              <span class="code-lang">the model IS your interface to the table</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code>User::create([...]);                 // INSERT a row
+User::where('email', $e)->first();   // SELECT ... WHERE email = ?
+$user->email;                        // read a column, as a property
+$user->save();                       // UPDATE the row
+</code></pre>
+          </div>
+
+          <p>
+            You never told Laravel "<code>User</code> uses the <code>users</code> table" — it
+            <strong>infers</strong> the table name from the class name (singular <code>User</code> →
+            plural, lower-case <code>users</code>). The model is simply the PHP face of a table, and
+            it's also where you <em>configure how that table behaves</em>. Which is exactly what the
+            rest of the file does.
+          </p>
+
+          <!-- ============================================================
+               SECTION 2 — the annotated file
+               ============================================================ -->
+          <h2 id="tour" data-toc="Your file, annotated">
+            <span class="h2-index">02</span>Your <code>User.php</code>, line by line
+          </h2>
+          <hr class="section-rule" />
+          <p>Here's your actual file with markers — each number is explained below it.</p>
+
+          <div class="code">
+            <div class="code-bar">
+              <span class="code-lang">builder/backend/app/Models/User.php (yours)</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code>&lt;?php
+
+namespace App\Models;                                       // (1)
+
+use Database\Factories\UserFactory;                         // (2)
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
+
+#[Fillable(['name', 'email', 'password'])]                  // (3)
+#[Hidden(['password', 'remember_token'])]
+class User extends Authenticatable                          // (4)
+{
+    /** @use HasFactory&lt;UserFactory&gt; */
+    use HasFactory, Notifiable;                             // (5)
+
+    protected function casts(): array                       // (6)
+    {
+        return [
+            'email_verified_at' =&gt; 'datetime',
+            'password' =&gt; 'hashed',
+        ];
+    }
+}</code></pre>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>#</th><th>What it is</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><b>(1)</b></td>
+                  <td><code>namespace App\Models;</code> — this class's "address." Its full name is
+                    <code>App\Models\User</code>, which is why you import it elsewhere as
+                    <code>use App\Models\User;</code>. Namespaces mirror folders:
+                    <code>App\Models</code> ↔ <code>app/Models/</code>.</td>
+                </tr>
+                <tr>
+                  <td><b>(2)</b></td>
+                  <td>The <strong>import</strong> block — <code>use …;</code> lines that say <em>where</em>
+                    each referenced class lives. The interesting one:
+                    <code>use Illuminate\Foundation\Auth\User as Authenticatable;</code> imports
+                    Laravel's base auth-user class but <strong>renames</strong> it to
+                    <code>Authenticatable</code> in this file (that's what <code>as</code> does), so
+                    line (4) reads cleanly.</td>
+                </tr>
+                <tr>
+                  <td><b>(3)</b></td>
+                  <td><strong>Attributes</strong> (the <code>#[…]</code> syntax — like Java
+                    annotations / C# attributes: metadata on the class). Laravel reads them:
+                    <code>#[Fillable]</code> = the mass-assignment allowlist (what <code>create()</code>
+                    accepts); <code>#[Hidden]</code> = fields stripped from JSON output.</td>
+                </tr>
+                <tr>
+                  <td><b>(4)</b></td>
+                  <td><code>class User extends Authenticatable</code> — the class declaration.
+                    <code>extends</code> is inheritance (one parent only, in PHP). It extends the
+                    <em>auth</em> user base (not a plain <code>Model</code>), which is what gives users
+                    password-authentication abilities out of the box.</td>
+                </tr>
+                <tr>
+                  <td><b>(5)</b></td>
+                  <td>The in-class <strong>trait</strong> line (mixins). <code>HasFactory</code> adds
+                    the <code>factory()</code> method (test data); <code>Notifiable</code> adds
+                    <code>notify()</code>. <em>This is the line you add <code>HasApiTokens</code> to.</em>
+                    The <code>/** @use … */</code> line above it is just a PHPDoc comment for your
+                    editor/tooling — it doesn't run.</td>
+                </tr>
+                <tr>
+                  <td><b>(6)</b></td>
+                  <td><code>casts()</code> — tells Eloquent how to convert columns to/from PHP types.
+                    <code>email_verified_at =&gt; 'datetime'</code> makes that column a date object;
+                    <code>password =&gt; 'hashed'</code> auto-hashes on set. It's the type-conversion
+                    layer between the raw DB and your PHP objects.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- ============================================================
+               SECTION 3 — two use keywords
+               ============================================================ -->
+          <h2 id="use" data-toc="The two use keywords">
+            <span class="h2-index">03</span>The two <code>use</code> keywords, again — because they're everywhere
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            Your file has <code>use</code> in <em>both</em> of its meanings, and telling them apart is
+            half of reading Laravel fluently:
+          </p>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Where</th><th>Meaning</th><th>In your file</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><b>Top of file</b>, before the class</td>
+                  <td><strong>Import</strong> — "this class lives at this namespace path"</td>
+                  <td>the (2) block, e.g. <code>use Illuminate\Notifications\Notifiable;</code></td>
+                </tr>
+                <tr>
+                  <td><b>Inside the class body</b></td>
+                  <td><strong>Trait</strong> — "mix these traits' methods into this class"</td>
+                  <td>line (5): <code>use HasFactory, Notifiable;</code></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <p>
+            A <strong>trait</strong> is PHP's <em>mixin</em>: since a class can <code>extend</code> only
+            one parent, traits are how you graft in bundles of shared methods. That's why adding
+            <code>HasApiTokens</code> to line (5) suddenly gives your <code>User</code> a
+            <code>createToken()</code> method — the trait carries it in. And it needs a matching
+            <em>import</em> up in (2) so PHP knows where <code>HasApiTokens</code> comes from. Two
+            <code>use</code>s, one for "where," one for "mix in."
+          </p>
+
+          <!-- ============================================================
+               SECTION 4 — attributes vs properties
+               ============================================================ -->
+          <h2 id="attrs" data-toc="Attributes vs properties">
+            <span class="h2-index">04</span>Why your file looks different from most tutorials
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            If you Google "Laravel model fillable," almost every result shows this <em>inside</em> the
+            class:
+          </p>
+          <div class="code">
+            <div class="code-bar">
+              <span class="code-lang">the OLDER style — property-based (not what you have)</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code>protected $fillable = ['name', 'email', 'password'];
+protected $hidden   = ['password', 'remember_token'];</code></pre>
+          </div>
+          <p>
+            Your Laravel 13 uses the newer <strong>attribute</strong> form instead
+            (<code>#[Fillable([...])]</code> / <code>#[Hidden([...])]</code> above the class). They
+            mean <strong>exactly the same thing</strong> — same allowlist, same JSON hiding — just a
+            newer syntax. So when a tutorial shows the <code>$fillable</code> property and your file
+            shows the attribute, don't panic: they're two spellings of one idea. (You could even use
+            the property form and it'd work; your scaffold just happens to ship the modern one.)
+          </p>
+
+          <!-- ============================================================
+               SECTION 5 — model vs migration
+               ============================================================ -->
+          <h2 id="halves" data-toc="Model vs migration">
+            <span class="h2-index">05</span>Model vs migration: two halves of one table
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            Easy to conflate, worth separating cleanly:
+          </p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th></th><th>Migration</th><th>Model</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><b>Job</b></td><td>defines the table's <em>structure</em> (columns, types)</td><td>reads/writes the table's <em>rows</em> + configures behaviour</td></tr>
+                <tr><td><b>Runs when</b></td><td>once, at <code>php artisan migrate</code></td><td>every time your code touches data</td></tr>
+                <tr><td><b>Lives in</b></td><td><code>database/migrations/</code></td><td><code>app/Models/</code></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p style="margin-bottom:0">
+            The migration <em>built</em> the <code>users</code> table (M2-01); the model is how you
+            now <em>use</em> it. Same table, two files, two jobs.
+          </p>
+
+          <!-- ============================================================
+               SECTION 6 — check yourself
+               ============================================================ -->
+          <h2 id="check" data-toc="Check yourself">
+            <span class="h2-index">06</span>Check yourself
+          </h2>
+          <hr class="section-rule" />
+          <p>Predict each before revealing it.</p>
+
+          <div data-widget="quiz" data-kicker="Quiz" data-title="Predict the behaviour">
+            <script type="application/json">
+            {
+              "questions": [
+                {
+                  "q": "What does an Eloquent model class like User represent?",
+                  "options": [
+                    "A single database table — and one instance of the class is one row.",
+                    "A single web page.",
+                    "The database connection settings."
+                  ],
+                  "answer": 0,
+                  "why": "A model maps one class to one table (User ↔ users). Each instance is one row, and you read/write the table through the class instead of writing SQL."
+                },
+                {
+                  "q": "User.php has `use` in two places. What's the difference?",
+                  "options": [
+                    "They're identical; PHP just allows it twice.",
+                    "Top of file = a namespace IMPORT (where a class lives); inside the class = a TRAIT (mixes methods in).",
+                    "One is for classes, the other for constants."
+                  ],
+                  "answer": 1,
+                  "why": "Same keyword, two jobs. The top-of-file use says where a class lives so you can use its short name; the in-class use pulls a trait's methods into the class (a mixin)."
+                },
+                {
+                  "q": "Nothing in User.php names a table. How does Laravel know it's the `users` table?",
+                  "options": [
+                    "You must always set a $table property; it's missing here by mistake.",
+                    "It infers it from the class name: User → users (pluralised, lower-cased).",
+                    "It uses whatever table was created first."
+                  ],
+                  "answer": 1,
+                  "why": "Eloquent infers the table from the class name by convention — singular class 'User' → plural snake_case table 'users'. You only set $table when you break the convention."
+                },
+                {
+                  "q": "Your file has `#[Fillable([...])]`; most tutorials show `protected $fillable = [...]`. Which is true?",
+                  "options": [
+                    "The attribute is wrong — you must convert it to the property.",
+                    "They mean the same thing — attribute vs property syntax; your Laravel 13 ships the attribute form.",
+                    "Attributes only work on controllers, not models."
+                  ],
+                  "answer": 1,
+                  "why": "Same behaviour, two syntaxes. Newer Laravel offers the #[Fillable]/#[Hidden] attribute form; older code and most tutorials use the $fillable/$hidden properties. Don't let the mismatch confuse you."
+                }
+              ]
+            }
+            </script>
+          </div>
+
+          <!-- ============================================================
+               SECTION 7 — checkpoint
+               ============================================================ -->
+          <h2 id="checkpoint" data-toc="Checkpoint">
+            <span class="h2-index">07</span>Checkpoint — see the model behave
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            No code to write — you'll <em>read</em> your model and then watch its parts act in
+            <code>tinker</code>, so the annotations become real. (You need at least one registered
+            user from M2-03; if <code>first()</code> is null, register one.)
+          </p>
+
+          <div data-widget="checklist"
+               data-progress-id="m2-05"
+               data-next="With the model no longer a black box, finish the M2-04 Sanctum trait edit if you haven't — then we build the LOGIN endpoint (verify the password with Hash::check and issue a token)."
+               data-kicker="Checkpoint"
+               data-title="Read it, then watch it work">
+            <script type="application/json">
+            {
+              "items": [
+                "Open <code>app/Models/User.php</code> and point to each marked part from §2: namespace (1), imports (2), the <code>#[Fillable]</code>/<code>#[Hidden]</code> attributes (3), <code>extends Authenticatable</code> (4), the in-class trait line (5), and <code>casts()</code> (6).",
+                "In <code>php artisan tinker</code>: <code>$u = \\App\\Models\\User::first();</code> — that's one model instance = one row of the users table.",
+                "Read columns as properties: <code>$u->name</code> and <code>$u->email</code> — the row's fields, straight off the object.",
+                "See a cast live: <code>$u->created_at</code> is a date OBJECT, not a string — confirm with <code>get_class($u->created_at)</code> (a Carbon class). That's the type-casting layer at work.",
+                "See <code>#[Hidden]</code> live: <code>$u->toArray()</code> — the output has name/email/timestamps but <b>no</b> <code>password</code>. Attribute (3) stripped it.",
+                "Say it back: name the exact line that controls (a) what <code>create()</code> may set, (b) what's hidden from JSON, and (c) how the password is stored."
+              ]
+            }
+            </script>
+          </div>
+
+          <div class="callout callout--key">
+            <span class="callout-tag">You're done when</span>
+            <p style="margin:0">
+              You can walk your <code>User.php</code> top to bottom and say what each part does, you've
+              watched a cast and <code>#[Hidden]</code> behave in tinker, and the difference between the
+              two <code>use</code> keywords is second nature.
+            </p>
+          </div>
+
+          <div class="callout callout--warn">
+            <span class="callout-tag">If tinker fights you</span>
+            <p style="margin:0">
+              <code>User::first()</code> returns <code>null</code>? You have no users yet — register one
+              (M2-03) first. <code>Class not found</code>? Use the full <code>\App\Models\User</code>
+              with the leading backslash inside tinker. Type <code>exit</code> to leave.
+            </p>
+          </div>
+
+          <p>
+            Now that <code>User.php</code> isn't a black box, the <code>HasApiTokens</code> edit from
+            M2-04 should feel routine — go finish that if you haven't. <strong>Then</strong> we build the
+            <strong>login</strong> endpoint: find the user by email, verify the password with
+            <code>Hash::check()</code>, and hand back a token — using the very model you just dissected.
+          </p>
+
+          <!-- ---- page end ---- -->
+          <nav class="page-end">
+            <a class="btn btn--ghost" href="m2-04-auth-tokens-and-sanctum.html">← M2-04</a>
+            <span class="pe-label">Next concept unlocks when this checkpoint is done</span>
+          </nav>
+
+          <footer class="site-foot">
+            <span>M2-05 · Anatomy of a Model</span>
+            <span class="mono">CTF Platform — study site</span>
+          </footer>
+
+        </article>
+      </div>
+    </main>
+
+  </div>
+
+  <script src="assets/js/app.js"></script>
+  <script src="assets/js/widgets.js"></script>
+</body>
+</html>

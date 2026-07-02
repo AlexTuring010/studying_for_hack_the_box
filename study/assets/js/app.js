@@ -132,6 +132,13 @@
           sub: "Stateless HTTP, bearer tokens, and the safe Sanctum setup",
           file: "m2-04-auth-tokens-and-sanctum.html",
           state: "available"
+        },
+        {
+          code: "M2-05", id: "m2-05",
+          title: "Anatomy of a Model",
+          sub: "A line-by-line tour of User.php: namespaces, attributes, traits, casts",
+          file: "m2-05-anatomy-of-a-model.html",
+          state: "available"
         }
       ]
     },
