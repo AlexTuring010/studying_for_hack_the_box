@@ -207,7 +207,9 @@
               <span class="code-lang">1 — install the package (needs internet)</span>
               <button class="copy-btn">Copy</button>
             </div>
-<pre><code>composer require laravel/sanctum:^4.0</code></pre>
+<pre><code>composer require laravel/sanctum
+# no version pin — composer picks the newest Sanctum compatible with your Laravel 13.
+# (Pinning an old version like :^4.0 fails: Sanctum 4.0.0 needs Laravel 11, not 13.)</code></pre>
           </div>
 
           <div class="code">
@@ -343,7 +345,7 @@ $u->createToken('test')->plainTextToken;     // → "1|abc123…"  (your first t
             <script type="application/json">
             {
               "items": [
-                "Run <code>composer require laravel/sanctum:^4.0</code> (needs internet). Do <b>NOT</b> run <code>php artisan install:api</code>, and never <code>--force</code>.",
+                "Run <code>composer require laravel/sanctum</code> (needs internet; no version pin — composer picks the Laravel-13-compatible release). Do <b>NOT</b> run <code>php artisan install:api</code>, and never <code>--force</code>.",
                 "Run <code>php artisan migrate</code>, then <code>php artisan migrate:status</code> — confirm <code>...create_personal_access_tokens_table</code> shows <b>Ran</b>.",
                 "In <code>app/Models/User.php</code>: import <code>Laravel\\Sanctum\\HasApiTokens</code> and add <code>HasApiTokens</code> to the existing <code>use HasFactory, Notifiable;</code> trait line.",
                 "Mint a token in <code>php artisan tinker</code>: <code>\\App\\Models\\User::first()->createToken('test')->plainTextToken</code> → you get an <code>id|random</code> string.",
