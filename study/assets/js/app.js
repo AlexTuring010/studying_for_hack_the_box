@@ -91,6 +91,13 @@
           sub: "Same-Origin Policy, CORS as opt-in, moving the endpoint under /api",
           file: "m1-07-cors-and-the-api-route.html",
           state: "available"
+        },
+        {
+          code: "M1-08", id: "m1-08",
+          title: "The Round-Trip",
+          sub: "Reactivity with ref(), fetch on mount, rendering data — M1 finale",
+          file: "m1-08-the-round-trip.html",
+          state: "available"
         }
       ]
     },

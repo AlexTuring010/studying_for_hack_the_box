@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>M1-08 · The Round-Trip — CTF Platform Study</title>
+  <meta name="description" content="The Milestone 1 finale: reactivity with ref(), fetching on mount with onMounted(), and rendering the data in the template — your backend JSON, on the page." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%235fe3a1'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body class="page-concept" data-page="m1-08">
+
+  <!-- mobile top bar -->
+  <div class="topbar">
+    <button class="icon-btn" id="nav-toggle" aria-label="Toggle navigation">☰</button>
+    <div class="brand">
+      <div class="brand-mark">⚑</div>
+      <div class="brand-text"><b>CTF Platform</b><span>study</span></div>
+    </div>
+  </div>
+  <div class="nav-overlay" id="nav-overlay"></div>
+
+  <div class="layout">
+
+    <!-- ============ SIDEBAR ============ -->
+    <aside class="sidebar">
+      <a href="index.html" class="brand" style="text-decoration:none">
+        <div class="brand-mark">⚑</div>
+        <div class="brand-text">
+          <b>CTF Platform</b>
+          <span>study companion</span>
+        </div>
+      </a>
+      <nav id="sidebar-nav"><!-- built by app.js --></nav>
+    </aside>
+
+    <!-- ============ MAIN ============ -->
+    <main class="main">
+      <div class="content">
+        <article class="article">
+
+          <!-- ---- header ---- -->
+          <header class="concept-head">
+            <div class="breadcrumb">
+              <a href="index.html">Study</a>
+              <span class="sep">/</span>
+              <span>Milestone 1 — Plumbing</span>
+              <span class="sep">/</span>
+              <span>Concept 08</span>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <span class="pill pill--ms">M1 · Plumbing</span>
+              <span class="pill pill--idx">Concept 8 · finale</span>
+            </div>
+            <h1 class="concept-title">The Round-Trip</h1>
+            <div class="concept-meta">
+              <span>🎯 &nbsp;Goal: your backend's JSON, rendered on the Vue page</span>
+              <span>🏁 &nbsp;This completes Milestone 1 — your MVP foundation</span>
+              <span>🧩 &nbsp;Concept: reactivity + lifecycle + rendering</span>
+            </div>
+          </header>
+
+          <div class="callout callout--key">
+            <span class="callout-tag">Read me first</span>
+            <p>
+              You proved the data path in the console: <code>fetch</code> →
+              <code>/api/test-php-array</code> → your JSON, no CORS error. The only thing left
+              is to make <strong>Vue</strong> do it — fetch when the page loads, hold the result,
+              and draw it on screen. That's the finale of Milestone 1: a real, end-to-end
+              <strong>round-trip</strong>.
+            </p>
+            <p style="margin-bottom:0">
+              This is your first real Vue code, so I'll teach the three moving parts with small
+              generic examples — then <strong>you</strong> assemble them in <code>App.vue</code>
+              using the <code>fetch</code> you already know. I'm deliberately not handing you the
+              finished component; wiring it yourself is the whole point.
+            </p>
+          </div>
+
+          <div class="onpage" id="on-this-page"><!-- built by app.js --></div>
+
+          <!-- ============================================================
+               SECTION 1 — the three pieces
+               ============================================================ -->
+          <h2 id="pieces" data-toc="Three pieces">
+            <span class="h2-index">01</span>Showing remote data needs three things
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            Any component that displays data from a server needs to answer three questions.
+            The rest of this lesson is one Vue tool per question:
+          </p>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Question</th><th>Vue tool</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><b>Where do I keep the data</b> so the UI updates when it arrives?</td><td>a reactive <code>ref()</code></td></tr>
+                <tr><td><b>When do I fetch it?</b></td><td>the <code>onMounted()</code> lifecycle hook</td></tr>
+                <tr><td><b>How do I show it?</b></td><td>template rendering — <code>{{ }}</code> and <code>v-if</code></td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- ============================================================
+               SECTION 2 — reactivity / ref
+               ============================================================ -->
+          <h2 id="ref" data-toc="Reactivity with ref()">
+            <span class="h2-index">02</span>Reactivity: a value the UI watches (<code>ref</code>)
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            Here's the core idea that makes Vue "Vue." If you keep data in a
+            <strong>plain</strong> variable and change it, the page does <em>not</em> update —
+            Vue has no idea anything happened. Wrap it in a <strong><code>ref()</code></strong>
+            and Vue <em>tracks</em> it: whenever the value changes, every part of the template
+            that uses it re-renders <strong>automatically</strong>. That auto-update is
+            "reactivity."
+          </p>
+
+          <div class="code">
+            <div class="code-bar">
+              <span class="code-lang">vue — a reactive counter (illustrative, NOT your task)</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code>&lt;script setup&gt;
+import { ref } from 'vue'
+
+const count = ref(0)          // a reactive value, starting at 0
+&lt;/script&gt;
+
+&lt;template&gt;
+  &lt;button @click="count++"&gt;clicked {{ count }} times&lt;/button&gt;
+&lt;/template&gt;</code></pre>
+          </div>
+
+          <p>
+            Click the button and the displayed number updates itself — you never touch the DOM.
+            You changed <code>count</code>; the template re-rendered because it's reactive.
+          </p>
+
+          <div class="callout callout--warn">
+            <span class="callout-tag">The <code>.value</code> gotcha — everyone trips on this once</span>
+            <p style="margin:0">
+              A <code>ref</code> stores its contents under <code>.value</code>. So the rule is:<br />
+              • In <strong>JavaScript</strong> (inside <code>&lt;script&gt;</code>), read and write
+              <code>count<b>.value</b></code> — e.g. <code>count.value = 5</code>.<br />
+              • In the <strong>template</strong>, write just <code>count</code> — Vue
+              auto-unwraps it, so <code>{{ count }}</code> (not <code>{{ count.value }}</code>).<br />
+              Forgetting <code>.value</code> in JS is the #1 "why isn't my data updating?" bug.
+              Keep it in mind when you assign your fetched data.
+            </p>
+          </div>
+
+          <div class="callout callout--bridge">
+            <span class="callout-tag">Bridge — React, lightly</span>
+            <p style="margin:0">
+              If <code>useState</code> flickers a memory: <code>ref</code> is the same
+              "state that re-renders the UI when it changes" idea — except you mutate it
+              directly via <code>.value</code> instead of calling a setter. If that comparison
+              doesn't help, drop it; "a variable the UI watches" is all you need.
+            </p>
+          </div>
+
+          <!-- ============================================================
+               SECTION 3 — onMounted
+               ============================================================ -->
+          <h2 id="mounted" data-toc="Fetch on mount">
+            <span class="h2-index">03</span>When to fetch: <code>onMounted()</code>
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            A component has a <strong>lifecycle</strong>: it's created, then
+            <strong>mounted</strong> (added to the real page), and eventually unmounted.
+            <code>onMounted()</code> registers a function to run <em>right after</em> the
+            component lands on the page — the conventional spot to kick off a
+            <strong>side effect</strong> like a network request.
+          </p>
+
+          <div class="code">
+            <div class="code-bar">
+              <span class="code-lang">vue — onMounted (illustrative, NOT your task)</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code>&lt;script setup&gt;
+import { onMounted } from 'vue'
+
+onMounted(() =&gt; {
+  console.log('the component is now on the page')
+})
+&lt;/script&gt;</code></pre>
+          </div>
+
+          <p>
+            Could you fetch at the top of <code>&lt;script setup&gt;</code> instead? Often it
+            would even work — a non-awaited async call there doesn't block the first render
+            either, and the data still fills in reactively wherever you kick the fetch off. But
+            <code>onMounted</code> is the right home for a side effect like this: it runs right
+            <em>after</em> the component is actually on the page (so it's safe if your code ever
+            touches the rendered DOM), it's skipped during server-side rendering, and it's the
+            conventional lifecycle hook for side effects — which makes your intent obvious to the
+            next reader. (React bridge: it's the job <code>useEffect(() =&gt; {…}, [])</code> does.)
+          </p>
+
+          <!-- ============================================================
+               SECTION 4 — rendering
+               ============================================================ -->
+          <h2 id="render" data-toc="Rendering in the template">
+            <span class="h2-index">04</span>Showing it: <code>{{ }}</code> and <code>v-if</code>
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            Two bits of template syntax carry you here. <strong><code>{{ expression }}</code></strong>
+            ("mustache" interpolation) drops a JS value into the HTML. <strong><code>v-if</code></strong>
+            renders an element only when a condition is truthy (with an optional
+            <code>v-else</code>).
+          </p>
+
+          <div class="code">
+            <div class="code-bar">
+              <span class="code-lang">vue — interpolation + a loading guard (illustrative)</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code>&lt;template&gt;
+  &lt;p v-if="user"&gt;Hello, {{ user.name }}&lt;/p&gt;
+  &lt;p v-else&gt;loading…&lt;/p&gt;
+&lt;/template&gt;</code></pre>
+          </div>
+
+          <div class="callout callout--note">
+            <span class="callout-tag">Why the <code>v-if</code> guard matters</span>
+            <p style="margin:0">
+              Your data ref starts <em>empty</em> (say <code>null</code>) and only fills in once
+              the fetch resolves — a few milliseconds later. If the template tries to read
+              <code>data.name</code> while <code>data</code> is still <code>null</code>, you get a
+              render error. <code>v-if="data"</code> means "only render this once data exists,"
+              with <code>v-else</code> showing a placeholder until then. It's how you handle the
+              gap between "page loaded" and "data arrived."
+            </p>
+          </div>
+
+          <!-- ============================================================
+               SECTION 5 — assemble it
+               ============================================================ -->
+          <h2 id="assemble" data-toc="Assemble it in App.vue">
+            <span class="h2-index">05</span>Assembling it in <code>App.vue</code>
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            Now combine the three pieces with the <code>fetch</code> from M1-06. I'm giving you
+            the <strong>recipe, not the code</strong> — each step maps to something you've
+            already seen:
+          </p>
+
+          <div class="flow">
+            <div class="flow-step">
+              <div class="flow-rail"><div class="flow-bullet">1</div><div class="flow-line"></div></div>
+              <div class="flow-body">
+                <div class="fb-title">Declare a place to hold the data</div>
+                <div class="fb-text">In <code>&lt;script setup&gt;</code>, import <code>ref</code> and <code>onMounted</code>. Make a ref that starts empty (<code>null</code>) — it'll hold your fetched object.</div>
+              </div>
+            </div>
+            <div class="flow-step">
+              <div class="flow-rail"><div class="flow-bullet">2</div><div class="flow-line"></div></div>
+              <div class="flow-body">
+                <div class="fb-title">Write an async function that fetches and stores</div>
+                <div class="fb-text">The same two-await <code>fetch</code> you ran in the console (to <code>/api/test-php-array</code>), reading <code>res.json()</code> <em>once</em> — then assign the result into your ref (remember <code>.value</code>!).</div>
+              </div>
+            </div>
+            <div class="flow-step">
+              <div class="flow-rail"><div class="flow-bullet">3</div><div class="flow-line"></div></div>
+              <div class="flow-body">
+                <div class="fb-title">Call it on mount</div>
+                <div class="fb-text">Invoke that function inside <code>onMounted(...)</code> so it runs when the component appears.</div>
+              </div>
+            </div>
+            <div class="flow-step">
+              <div class="flow-rail"><div class="flow-bullet">4</div><div class="flow-line"></div></div>
+              <div class="flow-body">
+                <div class="fb-title">Render it</div>
+                <div class="fb-text">Replace the scaffold's <code>&lt;template&gt;</code> with your own: a <code>v-if</code> loading guard, then <code>{{ }}</code> to show the fields (name, age, email).</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="callout callout--note">
+            <span class="callout-tag">Gut the scaffold</span>
+            <p style="margin:0">
+              Delete the demo bits in <code>App.vue</code> — the <code>HelloWorld</code> /
+              <code>TheWelcome</code> imports and their tags in the template. This is your
+              component now. (Your committed scaffold means you can experiment fearlessly and
+              <code>git restore</code> if you want the original back.)
+            </p>
+          </div>
+
+          <!-- ============================================================
+               SECTION 6 — the full round-trip
+               ============================================================ -->
+          <h2 id="payoff" data-toc="The full round-trip">
+            <span class="h2-index">06</span>The full round-trip — every M1 lesson, one path
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            When it works, trace what just happened. Every concept of Milestone 1 is one hop in
+            this chain:
+          </p>
+
+          <div class="code">
+            <div class="code-bar">
+              <span class="code-lang">the journey of one piece of data</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code>Route handler returns a PHP array        (M1-02)
+        ↓  Laravel auto-serializes
+JSON over HTTP, from /api, CORS-allowed  (M1-07)
+        ↓  fetch + await res.json()
+a JavaScript object                      (M1-06)
+        ↓  stored into a ref (.value)
+reactive state Vue is watching           (this lesson)
+        ↓  {{ }} in the template
+pixels on the screen                     🎉</code></pre>
+          </div>
+
+          <p style="margin-bottom:0">
+            That is a full-stack round-trip: your PHP backend and your Vue frontend, two separate
+            apps, exchanging real data over HTTP. It's the "Plumbing" milestone's whole reason for
+            being — and the spine every future feature hangs off.
+          </p>
+
+          <!-- ============================================================
+               SECTION 7 — check yourself
+               ============================================================ -->
+          <h2 id="check" data-toc="Check yourself">
+            <span class="h2-index">07</span>Check yourself
+          </h2>
+          <hr class="section-rule" />
+          <p>Predict each before revealing it.</p>
+
+          <div data-widget="quiz" data-kicker="Quiz" data-title="Predict the behaviour">
+            <script type="application/json">
+            {
+              "questions": [
+                {
+                  "q": "You have `const data = ref(null)`. In your fetch function, how do you store the parsed JSON so the template updates?",
+                  "options": [
+                    "data = await res.json()",
+                    "data.value = await res.json()",
+                    "data.json = await res.json()"
+                  ],
+                  "answer": 1,
+                  "why": "A ref holds its contents under .value, so in JavaScript you assign data.value = .... Reassigning `data` itself wouldn't write into the ref Vue is watching — and since it's declared with `const`, it's an outright error anyway. Forgetting .value is the classic 'why won't it update?' bug."
+                },
+                {
+                  "q": "In the TEMPLATE, how do you show that same ref's name field?",
+                  "options": [
+                    "{{ data.value.name }}",
+                    "{{ data.name }}",
+                    "{{ data().name }}"
+                  ],
+                  "answer": 1,
+                  "why": "Vue auto-unwraps refs in the template, so you write {{ data.name }} — no .value. (The .value form is only for JavaScript, inside <script>.)"
+                },
+                {
+                  "q": "Where should the fetch be triggered so it runs when the component appears on the page?",
+                  "options": [
+                    "Inside onMounted(() => { ... })",
+                    "Inside the <style> block",
+                    "It runs automatically without being called anywhere"
+                  ],
+                  "answer": 0,
+                  "why": "onMounted registers a callback that runs right after the component mounts — the conventional place to start a side effect like a network request, so the UI can render (e.g. 'loading…') first and fill in when data arrives."
+                },
+                {
+                  "q": "Your data ref starts as null and fills a moment later. Why guard the output with v-if=\"data\"?",
+                  "options": [
+                    "It makes the fetch faster.",
+                    "Without it, the template may read data.name while data is still null and throw a render error.",
+                    "v-if is required on every element in Vue."
+                  ],
+                  "answer": 1,
+                  "why": "There's a gap between the component mounting and the fetch resolving. v-if=\"data\" renders the output only once data exists; a v-else shows a placeholder meanwhile. It's how you handle the loading state cleanly."
+                }
+              ]
+            }
+            </script>
+          </div>
+
+          <!-- ============================================================
+               SECTION 8 — checkpoint
+               ============================================================ -->
+          <h2 id="checkpoint" data-toc="Checkpoint">
+            <span class="h2-index">08</span>Checkpoint — finish the round-trip
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            Wire <code>App.vue</code> to fetch your route on load and render it. Both servers
+            running. <strong>You write the component — the recipe above is your guide.</strong>
+          </p>
+
+          <div data-widget="checklist"
+               data-progress-id="m1-08"
+               data-next="🎉 Milestone 1 COMPLETE. Tell Claude it renders (and commit App.vue). Next: Milestone 2 — Users Exist (registration, login, auth tokens) — real Laravel auth and Vue forms."
+               data-kicker="Checkpoint · M1 finale"
+               data-title="Data on the page">
+            <script type="application/json">
+            {
+              "items": [
+                "In <code>App.vue</code> <code>&lt;script setup&gt;</code>: import <code>ref</code> and <code>onMounted</code> from 'vue', and create a ref that starts <code>null</code> to hold the data.",
+                "Write an async function that does your <code>fetch</code> to <code>http://localhost:8000/api/test-php-array</code>, reads <code>await res.json()</code> once, and assigns it to your ref's <code>.value</code>.",
+                "Call that function inside <code>onMounted(...)</code>.",
+                "Replace the scaffold <code>&lt;template&gt;</code> with your own: a <code>v-if</code> loading guard, then <code>{{ }}</code> showing the <b>name</b>, <b>age</b>, and <b>email</b>. Remove the <code>HelloWorld</code>/<code>TheWelcome</code> bits.",
+                "Open <code>localhost:5173</code>. You should see a brief 'loading…', then your backend's <b>name / age / email</b> rendered on the page.",
+                "Confirm in the Network tab that the page itself made the <code>/api/test-php-array</code> request (not just your console earlier).",
+                "Commit it — this is App.vue's own commit (e.g. <code>feat(frontend): fetch and render API data on load</code>) — then push."
+              ]
+            }
+            </script>
+          </div>
+
+          <div class="callout callout--key">
+            <span class="callout-tag">You're done — and M1 is complete — when</span>
+            <p style="margin:0">
+              Your backend's <code>{ name, age, email }</code> renders on the Vue page, fetched on
+              mount into a reactive ref, committed and pushed — <strong>and</strong> you can explain
+              the <code>.value</code>-in-script-but-not-in-template rule and why the fetch lives in
+              <code>onMounted</code>. That's a working full-stack round-trip: <strong>Milestone 1
+              done.</strong>
+            </p>
+          </div>
+
+          <div class="callout callout--warn">
+            <span class="callout-tag">If the page is blank or stuck on "loading…"</span>
+            <p style="margin:0">
+              Open the console and Network tab. Common causes: forgot <code>.value</code> when
+              assigning (data never fills → stuck loading); wrote <code>.value</code> in the
+              template (undefined); read <code>data.name</code> without the <code>v-if</code> guard
+              (render error before data arrives); or the wrong URL (needs the <code>/api</code>
+              prefix). CORS should be fine now. Paste me the console text and we'll pin it.
+            </p>
+          </div>
+
+          <p>
+            When your data is on the page, come back and tell me — that's <strong>Milestone 1
+            complete</strong>: a genuine end-to-end app, and the foundation you'll apply to Hack
+            The Box with. <strong>Next</strong> is <strong>Milestone 2 — Users Exist</strong>:
+            registration, login, and auth tokens, with real Laravel auth and your first Vue forms.
+            But first — take the win. 🏁
+          </p>
+
+          <!-- ---- page end ---- -->
+          <nav class="page-end">
+            <a class="btn btn--ghost" href="m1-07-cors-and-the-api-route.html">← M1-07</a>
+            <span class="pe-label">Finishing this completes Milestone 1</span>
+          </nav>
+
+          <footer class="site-foot">
+            <span>M1-08 · The Round-Trip</span>
+            <span class="mono">CTF Platform — study site</span>
+          </footer>
+
+        </article>
+      </div>
+    </main>
+
+  </div>
+
+  <script src="assets/js/app.js"></script>
+  <script src="assets/js/widgets.js"></script>
+</body>
+</html>
