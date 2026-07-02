@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>M2-02 · Receiving &amp; Validating a POST — CTF Platform Study</title>
+  <meta name="description" content="Your first endpoint that receives data: GET vs POST, reading the request body, and Laravel validation as the server-side gatekeeper — building the request side of registration." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%235fe3a1'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body class="page-concept" data-page="m2-02">
+
+  <!-- mobile top bar -->
+  <div class="topbar">
+    <button class="icon-btn" id="nav-toggle" aria-label="Toggle navigation">☰</button>
+    <div class="brand">
+      <div class="brand-mark">⚑</div>
+      <div class="brand-text"><b>CTF Platform</b><span>study</span></div>
+    </div>
+  </div>
+  <div class="nav-overlay" id="nav-overlay"></div>
+
+  <div class="layout">
+
+    <!-- ============ SIDEBAR ============ -->
+    <aside class="sidebar">
+      <a href="index.html" class="brand" style="text-decoration:none">
+        <div class="brand-mark">⚑</div>
+        <div class="brand-text">
+          <b>CTF Platform</b>
+          <span>study companion</span>
+        </div>
+      </a>
+      <nav id="sidebar-nav"><!-- built by app.js --></nav>
+    </aside>
+
+    <!-- ============ MAIN ============ -->
+    <main class="main">
+      <div class="content">
+        <article class="article">
+
+          <!-- ---- header ---- -->
+          <header class="concept-head">
+            <div class="breadcrumb">
+              <a href="index.html">Study</a>
+              <span class="sep">/</span>
+              <span>Milestone 2 — Users Exist</span>
+              <span class="sep">/</span>
+              <span>Concept 02</span>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <span class="pill pill--ms">M2 · Users Exist</span>
+              <span class="pill pill--idx">Concept 2</span>
+            </div>
+            <h1 class="concept-title">Receiving &amp; Validating a POST</h1>
+            <div class="concept-meta">
+              <span>🎯 &nbsp;Goal: an endpoint that accepts registration data safely</span>
+              <span>✍️ &nbsp;You write real backend logic again today</span>
+              <span>🧩 &nbsp;Concept: POST + server-side validation</span>
+            </div>
+          </header>
+
+          <div class="callout callout--key">
+            <span class="callout-tag">Read me first</span>
+            <p>
+              Every endpoint you've built so far <em>hands data out</em> (a GET). Registration is
+              the opposite: the client <em>sends data in</em> — a name, email, password — and your
+              backend has to accept it. That's a <strong>POST</strong>. This lesson builds the
+              <em>receiving</em> half: taking the data and <strong>validating</strong> it. Next
+              lesson you'll hash the password and actually save the user.
+            </p>
+            <p style="margin-bottom:0">
+              You'll write this endpoint yourself. I'll teach POST and validation with generic
+              examples and tell you exactly which rules registration needs — then you assemble it
+              in <code>routes/api.php</code>.
+            </p>
+          </div>
+
+          <div class="onpage" id="on-this-page"><!-- built by app.js --></div>
+
+          <!-- ============================================================
+               SECTION 1 — GET vs POST
+               ============================================================ -->
+          <h2 id="post" data-toc="GET vs POST">
+            <span class="h2-index">01</span>GET hands out; POST takes in
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            HTTP methods signal <em>intent</em>. You've only used <code>GET</code> (read
+            something). Creating a user <em>submits</em> data, and the method for that is
+            <code>POST</code>. The practical differences that matter today:
+          </p>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th></th><th><code>GET</code></th><th><code>POST</code></th></tr>
+              </thead>
+              <tbody>
+                <tr><td><b>Intent</b></td><td>read / fetch</td><td>create / submit</td></tr>
+                <tr><td><b>Carries a body?</b></td><td>no — data rides in the URL</td><td><b>yes</b> — the data travels in the request body</td></tr>
+                <tr><td><b>Laravel</b></td><td><code>Route::get(...)</code></td><td><code>Route::post(...)</code></td></tr>
+                <tr><td><b>Trigger from a browser bar?</b></td><td>yes (typing a URL is a GET)</td><td><b>no</b> — you need a tool (§5)</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <p>
+            So your registration route is a <code>Route::post</code>, and the name/email/password
+            arrive in the request <strong>body</strong> (as JSON). That last row is important:
+            you can't test a POST by typing a URL — we'll deal with that in §5.
+          </p>
+
+          <!-- ============================================================
+               SECTION 2 — the Request object
+               ============================================================ -->
+          <h2 id="request" data-toc="Reading the body">
+            <span class="h2-index">02</span>Reading the incoming data: the <code>Request</code>
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            To read what the client sent, your handler asks for a <strong><code>Request</code></strong>
+            object — Laravel hands it in if you type-hint it as a parameter. It represents the whole
+            incoming HTTP request (body, headers, everything):
+          </p>
+
+          <div class="code">
+            <div class="code-bar">
+              <span class="code-lang">php — the shape of a handler that reads input (illustrative)</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code>use Illuminate\Http\Request;          // ← import it, like you import Route
+
+Route::post('/example', function (Request $request) {
+    $email = $request-&gt;input('email');   // read one field
+    // ... $request-&gt;all() would give everything ...
+});</code></pre>
+          </div>
+
+          <p>
+            Notice the <code>use Illuminate\Http\Request;</code> — same idea as the
+            <code>Route</code> facade import you asked about: <code>Request</code> is a class, and
+            <code>use</code> lets you write its short name. But you'll rarely poke at
+            <code>$request-&gt;input(...)</code> field by field — because the very next step,
+            validation, reads and checks everything at once.
+          </p>
+
+          <!-- ============================================================
+               SECTION 3 — validation
+               ============================================================ -->
+          <h2 id="validate" data-toc="Validation, the gatekeeper">
+            <span class="h2-index">03</span>Validation: never trust the client
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            <strong>Rule of the trade: never trust input from the client.</strong> It can be
+            missing fields, a junk email, a 2-character password, or crafted to attack you. Your
+            server must check it <em>before</em> using it — this is a security boundary, not a
+            nicety. Laravel makes it one call: <code>$request-&gt;validate([...])</code>.
+          </p>
+
+          <div class="code">
+            <div class="code-bar">
+              <span class="code-lang">php — validation on a DIFFERENT resource (illustrative, not your task)</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code>$validated = $request-&gt;validate([
+    'title' =&gt; 'required|string|max:255',
+    'count' =&gt; 'required|integer|min:0',
+]);
+// If any rule fails → Laravel stops here and returns a 422 with JSON errors.
+// If all pass       → $validated holds the clean data, and your code continues.</code></pre>
+          </div>
+
+          <p>
+            Each field maps to a <code>|</code>-separated list of rules. The magic:
+            <strong>on failure, <code>validate()</code> throws automatically</strong> — Laravel
+            catches it and sends back a <code>422 Unprocessable Content</code> with the errors as
+            JSON. Your code below <em>never runs</em>. On success, it hands you back only the
+            validated fields.
+          </p>
+
+          <p>For <strong>registration</strong>, here are the rules you'll want — you write the actual call:</p>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Field</th><th>Rules</th><th>Meaning</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>name</code></td><td><code>required · string · max:255</code></td><td>must be present, text, not absurdly long</td></tr>
+                <tr><td><code>email</code></td><td><code>required · email · unique:users</code></td><td>present, a real email shape, and <b>not already in the <code>users</code> table</b></td></tr>
+                <tr><td><code>password</code></td><td><code>required · string · min:8 · confirmed</code></td><td>present, at least 8 chars, and <b>matches a confirmation field</b></td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="callout callout--note">
+            <span class="callout-tag">Two rules worth understanding</span>
+            <p style="margin:0">
+              <b><code>unique:users</code></b> makes Laravel query your <code>users</code> table and
+              reject the email if a row already has it — a database check, wired right into
+              validation (see how the DB lesson pays off?). <b><code>confirmed</code></b> requires a
+              second field named <code>password_confirmation</code> that must match
+              <code>password</code> — the classic "type your password twice" safeguard. So your test
+              request needs to send both <code>password</code> <em>and</em>
+              <code>password_confirmation</code>.
+            </p>
+          </div>
+
+          <!-- ============================================================
+               SECTION 4 — the 422
+               ============================================================ -->
+          <h2 id="errors" data-toc="What failure looks like">
+            <span class="h2-index">04</span>What a validation failure looks like
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            When validation fails, the caller gets a <code>422</code> and a predictable JSON body —
+            the exact shape your Vue form will read later to show error messages:
+          </p>
+
+          <div class="code">
+            <div class="code-bar">
+              <span class="code-lang">a 422 response body (illustrative)</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code>{
+  "message": "The email field is required. (and 1 more error)",
+  "errors": {
+    "email":    ["The email field is required."],
+    "password": ["The password field must be at least 8 characters."]
+  }
+}</code></pre>
+          </div>
+
+          <div class="callout callout--note">
+            <span class="callout-tag">Why yours comes back as clean JSON</span>
+            <p style="margin:0">
+              Remember that line in <code>bootstrap/app.php</code>:
+              <code>shouldRenderJsonWhen(… $request-&gt;is('api/*'))</code>? That's what guarantees a
+              validation error on an <code>/api/*</code> route renders as JSON (not an HTML error
+              page or a redirect). It's already set up — another reason your endpoints live under
+              <code>/api</code>.
+            </p>
+          </div>
+
+          <!-- ============================================================
+               SECTION 5 — testing a POST
+               ============================================================ -->
+          <h2 id="testing" data-toc="Testing a POST">
+            <span class="h2-index">05</span>How to test a POST (you can't use the URL bar)
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            Typing a URL in the browser is a GET, so you need a way to <em>send a body</em>. Any of
+            these work — pick one:
+          </p>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Tool</th><th>Good because</th><th>Watch out for</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><b>Browser console <code>fetch</code></b></td><td>you already know it; no install</td><td>runs cross-origin from the <code>:5173</code> tab (CORS applies — yours allows it)</td></tr>
+                <tr><td><b><code>curl.exe</code></b></td><td>no CORS at all (not a browser); scriptable</td><td>in PowerShell, plain <code>curl</code> is an <em>alias</em> for something else — type <code>curl.exe</code></td></tr>
+                <tr><td><b>REST client</b> (Thunder Client, REST Client, Postman, Insomnia)</td><td>the professional tool for APIs; saves requests</td><td>one-time install</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <p>
+            The header that actually matters: <code>Content-Type: application/json</code> — without
+            it, Laravel won't parse your JSON body, so <em>every field reads as missing</em> and you
+            get baffling "required" errors (the #1 confusing failure here). <code>Accept:
+            application/json</code> is good practice too, but on your <code>/api/*</code> routes you
+            get JSON back either way (§4). The generic shape of a POST via <code>fetch</code>:
+          </p>
+
+          <div class="code">
+            <div class="code-bar">
+              <span class="code-lang">js — a POST from the console (illustrative testing scaffold)</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code>await fetch('http://localhost:8000/api/SOMETHING', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+  body: JSON.stringify({ /* the fields you're sending */ }),
+}).then(r =&gt; r.json())</code></pre>
+          </div>
+
+          <!-- ============================================================
+               SECTION 6 — check yourself
+               ============================================================ -->
+          <h2 id="check" data-toc="Check yourself">
+            <span class="h2-index">06</span>Check yourself
+          </h2>
+          <hr class="section-rule" />
+          <p>Predict each before revealing it.</p>
+
+          <div data-widget="quiz" data-kicker="Quiz" data-title="Predict the behaviour">
+            <script type="application/json">
+            {
+              "questions": [
+                {
+                  "q": "Which HTTP method should the registration endpoint use, and why?",
+                  "options": [
+                    "GET — it's the default and simplest.",
+                    "POST — it submits data to create something, carrying the fields in the request body.",
+                    "It doesn't matter; any method works."
+                  ],
+                  "answer": 1,
+                  "why": "POST expresses 'create/submit' and carries a body, which is where the name/email/password travel. GET is for reading and puts data in the URL — wrong fit for creating a user (and you can't easily send a password in a URL)."
+                },
+                {
+                  "q": "A request hits your endpoint missing the email. What does `$request->validate([...])` do?",
+                  "options": [
+                    "Returns null, and your code keeps running with missing data.",
+                    "Automatically stops and returns a 422 with JSON errors — the code after validate() never runs.",
+                    "Silently inserts an empty email."
+                  ],
+                  "answer": 1,
+                  "why": "On failure, validate() throws; Laravel turns that into a 422 response with an 'errors' object. Execution halts there, so you never operate on invalid data. On success it returns just the validated fields."
+                },
+                {
+                  "q": "The `confirmed` rule on `password` expects the request to ALSO include which field?",
+                  "options": [
+                    "password_again",
+                    "confirm_password",
+                    "password_confirmation"
+                  ],
+                  "answer": 2,
+                  "why": "`confirmed` looks for a field named <field>_confirmation — so password_confirmation — and requires it to match. That's why your test POST must send both password and password_confirmation."
+                },
+                {
+                  "q": "What does `unique:users` on the email field check?",
+                  "options": [
+                    "That the email string has no duplicate characters.",
+                    "That no existing row in the users table already has that email.",
+                    "That the email is unique across the whole internet."
+                  ],
+                  "answer": 1,
+                  "why": "unique:users runs a query against your users table and fails validation if a user with that email already exists — preventing duplicate accounts, right inside the validation step."
+                }
+              ]
+            }
+            </script>
+          </div>
+
+          <!-- ============================================================
+               SECTION 7 — checkpoint
+               ============================================================ -->
+          <h2 id="checkpoint" data-toc="Checkpoint">
+            <span class="h2-index">07</span>Checkpoint — validate a registration POST
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            Build the receiving half of registration. <strong>No database write yet</strong> — just
+            take the data and validate it. You write the endpoint; the rules table in §3 is your spec.
+          </p>
+
+          <div data-widget="checklist"
+               data-progress-id="m2-02"
+               data-next="Tell Claude your endpoint returns 200 for good input and 422 for bad. Next: hashing the password and writing the user row — User::create + the security of never storing a raw password (your first DB write)."
+               data-kicker="Checkpoint"
+               data-title="A validating /api/register">
+            <script type="application/json">
+            {
+              "items": [
+                "In <code>routes/api.php</code>, add a <code>Route::post('/register', ...)</code> whose handler takes a <code>Request $request</code> (remember to <code>use Illuminate\\Http\\Request;</code>).",
+                "Call <code>$request-&gt;validate([...])</code> with the rules from §3: name (required/string/max:255), email (required/email/unique:users), password (required/string/min:8/confirmed).",
+                "For now, just <b>return the validated data</b> (or <code>['message' =&gt; 'ok']</code>) — do NOT write to the database yet.",
+                "Test a VALID request (send name, email, password, AND password_confirmation) → expect your data back with a 2xx status.",
+                "Test INVALID: omit email → 422 with an email error; send a bad email → 422; send password without password_confirmation → 422. Read the JSON <code>errors</code>.",
+                "<b>Notice:</b> you wrote zero if-statements for those checks — <code>validate()</code> produced the 422s for you."
+              ]
+            }
+            </script>
+          </div>
+
+          <div class="callout callout--key">
+            <span class="callout-tag">You're done when</span>
+            <p style="margin:0">
+              <code>POST /api/register</code> returns a 2xx for well-formed input and a
+              <code>422</code> with JSON <code>errors</code> for bad input — <strong>and</strong> you
+              can explain why we validate on the server (never trust the client) and what
+              <code>confirmed</code> and <code>unique:users</code> do.
+            </p>
+          </div>
+
+          <div class="callout callout--warn">
+            <span class="callout-tag">Testing gotchas</span>
+            <p style="margin:0">
+              Always send <code>Content-Type: application/json</code> — without it Laravel won't parse
+              your JSON body, so every field looks missing and you get bogus "required" errors (the #1
+              confusing failure here). <code>Accept: application/json</code> is good practice, though your
+              <code>/api/*</code> routes return JSON regardless. In PowerShell, use <code>curl.exe</code>
+              (plain <code>curl</code> is aliased). If the console <code>fetch</code> throws a CORS error, you're calling
+              cross-origin from <code>:5173</code> — that's allowed by your config, so re-check your
+              URL/headers; or use <code>curl.exe</code> to sidestep the browser entirely.
+            </p>
+          </div>
+
+          <p>
+            When good input passes and bad input gets a clean 422, come back and tell me.
+            <strong>Then</strong> the payoff: we <strong>hash</strong> that password (so the raw
+            password is never stored — a real security practice, and the same idea as hashing flags
+            later) and use the <code>User</code> model to write your <em>first real row</em> into the
+            database.
+          </p>
+
+          <!-- ---- page end ---- -->
+          <nav class="page-end">
+            <a class="btn btn--ghost" href="m2-01-the-database-and-migrations.html">← M2-01</a>
+            <span class="pe-label">Next concept unlocks when this checkpoint is done</span>
+          </nav>
+
+          <footer class="site-foot">
+            <span>M2-02 · Receiving &amp; Validating a POST</span>
+            <span class="mono">CTF Platform — study site</span>
+          </footer>
+
+        </article>
+      </div>
+    </main>
+
+  </div>
+
+  <script src="assets/js/app.js"></script>
+  <script src="assets/js/widgets.js"></script>
+</body>
+</html>

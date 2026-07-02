@@ -111,6 +111,13 @@
           sub: "Databases from zero, SQLite as one file, schema-as-code",
           file: "m2-01-the-database-and-migrations.html",
           state: "available"
+        },
+        {
+          code: "M2-02", id: "m2-02",
+          title: "Receiving & Validating a POST",
+          sub: "GET vs POST, the Request object, server-side validation",
+          file: "m2-02-receiving-and-validating-a-post.html",
+          state: "available"
         }
       ]
     },
