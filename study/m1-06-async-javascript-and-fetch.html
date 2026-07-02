@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>M1-06 · Async JavaScript &amp; fetch — CTF Platform Study</title>
+  <meta name="description" content="Refresh the rusty-but-load-bearing JS: why network calls are async, promises as futures, async/await, and the fetch API — then pull your own route's JSON from the browser console." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%235fe3a1'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body class="page-concept" data-page="m1-06">
+
+  <!-- mobile top bar -->
+  <div class="topbar">
+    <button class="icon-btn" id="nav-toggle" aria-label="Toggle navigation">☰</button>
+    <div class="brand">
+      <div class="brand-mark">⚑</div>
+      <div class="brand-text"><b>CTF Platform</b><span>study</span></div>
+    </div>
+  </div>
+  <div class="nav-overlay" id="nav-overlay"></div>
+
+  <div class="layout">
+
+    <!-- ============ SIDEBAR ============ -->
+    <aside class="sidebar">
+      <a href="index.html" class="brand" style="text-decoration:none">
+        <div class="brand-mark">⚑</div>
+        <div class="brand-text">
+          <b>CTF Platform</b>
+          <span>study companion</span>
+        </div>
+      </a>
+      <nav id="sidebar-nav"><!-- built by app.js --></nav>
+    </aside>
+
+    <!-- ============ MAIN ============ -->
+    <main class="main">
+      <div class="content">
+        <article class="article">
+
+          <!-- ---- header ---- -->
+          <header class="concept-head">
+            <div class="breadcrumb">
+              <a href="index.html">Study</a>
+              <span class="sep">/</span>
+              <span>Milestone 1 — Plumbing</span>
+              <span class="sep">/</span>
+              <span>Concept 06</span>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <span class="pill pill--ms">M1 · Plumbing</span>
+              <span class="pill pill--idx">Concept 6</span>
+            </div>
+            <h1 class="concept-title">Async JavaScript &amp; <code>fetch</code></h1>
+            <div class="concept-meta">
+              <span>🎯 &nbsp;Goal: pull your route's JSON with <code>fetch</code> — from the console</span>
+              <span>🧠 &nbsp;Refresh: promises, async/await (rusty but load-bearing)</span>
+              <span>🧩 &nbsp;Concept: how JS waits without freezing</span>
+            </div>
+          </header>
+
+          <div class="callout callout--key">
+            <span class="callout-tag">Read me first</span>
+            <p>
+              Next lesson your Vue app will <em>ask</em> Laravel for data over the network. But
+              network calls take <strong>time</strong>, and JavaScript handles "takes time"
+              differently from the blocking code you're used to in C or Java. This is one of
+              the JS fundamentals you flagged as rusty — so we refresh it <strong>properly</strong>
+              now, on its own, before wiring it into a component.
+            </p>
+            <p style="margin-bottom:0">
+              No product code today. You'll practise in the browser <strong>console</strong>,
+              and by the end you'll pull the exact JSON array you built back in M1-02 — or hit
+              an instructive wall that sets up the lesson after this. Both are wins.
+            </p>
+          </div>
+
+          <div class="onpage" id="on-this-page"><!-- built by app.js --></div>
+
+          <!-- ============================================================
+               SECTION 1 — why async
+               ============================================================ -->
+          <h2 id="why" data-toc="Why async exists">
+            <span class="h2-index">01</span>Why "async" exists at all
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            In C, if you call a blocking <code>read()</code> on a socket, the thread
+            <em>stops</em> until bytes arrive. That's fine when you have threads to spare.
+            But <strong>JavaScript in the browser runs on a single thread</strong> — the same
+            one that handles clicks, scrolling, and repainting. If that one thread blocked for
+            300&nbsp;ms waiting on a server, the <em>entire page</em> would freeze: no clicks,
+            no scroll, nothing. Unacceptable.
+          </p>
+          <p>
+            So JS never blocks on I/O. Instead, a slow operation (like a network request)
+            returns <em>immediately</em> with a placeholder, the thread goes back to handling
+            the UI, and your code runs <strong>later</strong>, when the data actually arrives.
+            "Async" is just this idea: <em>start now, finish later, don't freeze in between.</em>
+          </p>
+
+          <div class="callout callout--bridge">
+            <span class="callout-tag">Bridge — from your parallel-programming background</span>
+            <p style="margin:0">
+              You've met this shape before. A blocking call you'd wrap in a worker thread and
+              hand back a <strong>future</strong>; the caller keeps going and reads the future
+              once it's ready. JS bakes that pattern into the language — except there's only
+              <em>one</em> thread and an <strong>event loop</strong> scheduling the
+              continuations, rather than an OS thread pool. Same goal (don't stall on I/O),
+              different machinery.
+            </p>
+          </div>
+
+          <!-- ============================================================
+               SECTION 2 — promises
+               ============================================================ -->
+          <h2 id="promise" data-toc="Promises = futures">
+            <span class="h2-index">02</span>A Promise is a value that isn't here yet
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            A <strong>Promise</strong> is an object standing in for a result that will exist
+            <em>later</em>. It's in one of three states:
+          </p>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>State</th><th>Meaning</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><b>pending</b></td><td>the work is still in flight — no value yet</td></tr>
+                <tr><td><b>fulfilled</b></td><td>done; it now holds a <em>value</em> (e.g. the server's response)</td></tr>
+                <tr><td><b>rejected</b></td><td>failed; it holds an <em>error</em> instead</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <p>
+            If you've used a <code>Future</code> / <code>CompletableFuture</code>, this
+            <em>is</em> that — JavaScript's spelling of a future. The old-school way to read
+            one is <code>.then()</code> for the value and <code>.catch()</code> for the error:
+          </p>
+
+          <div class="code">
+            <div class="code-bar">
+              <span class="code-lang">js — the .then() style (illustrative)</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code>fetch(url)                          // returns a Promise, right away
+  .then(response =&gt; response.json()) // when it resolves, do this…
+  .then(data =&gt; console.log(data))   // …then this with the parsed data
+  .catch(err =&gt; console.error(err)); // if anything rejected, land here</code></pre>
+          </div>
+
+          <p>
+            This works, but chains of <code>.then()</code> get awkward fast. There's a much
+            nicer syntax on top of the exact same promises — next.
+          </p>
+
+          <!-- ============================================================
+               SECTION 3 — async / await
+               ============================================================ -->
+          <h2 id="await" data-toc="async / await">
+            <span class="h2-index">03</span><code>async</code> / <code>await</code>: promises that read top-to-bottom
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            <code>await</code> tells JS: <em>"pause this function until the promise resolves,
+            then give me its value."</em> The result reads like ordinary sequential code — but
+            under the hood it's the same non-blocking promise, and the browser stays free while
+            it waits.
+          </p>
+
+          <div class="code">
+            <div class="code-bar">
+              <span class="code-lang">js — the async/await style (same work, clearer)</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code>async function load() {                 // 'async' marks a function that can await
+  const response = await fetch(url);    // wait for the Response…
+  const data = await response.json();   // …then wait for the body to parse
+  console.log(data);                    // now use it, as if it were synchronous
+}</code></pre>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Keyword</th><th>What it does</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>async</code></td><td>Marks a function as asynchronous. It may use <code>await</code> inside, and it <em>always</em> returns a Promise.</td></tr>
+                <tr><td><code>await</code></td><td>Pauses <em>this function</em> until the promise settles, then unwraps its value (or throws its error). Only legal inside <code>async</code> (and at the console's top level).</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="callout callout--note">
+            <span class="callout-tag">"Pauses the function" ≠ "freezes the browser"</span>
+            <p style="margin:0">
+              This is the point people miss. <code>await</code> suspends only the
+              <em>async function you're in</em> — it hands control back to the event loop, which
+              keeps painting, handling clicks, running timers. When the promise resolves, your
+              function resumes where it left off. It looks like blocking; it behaves like
+              cooperative yielding. That's the whole trick.
+            </p>
+          </div>
+
+          <!-- ============================================================
+               SECTION 4 — fetch
+               ============================================================ -->
+          <h2 id="fetch" data-toc="The fetch API">
+            <span class="h2-index">04</span>The <code>fetch</code> API — two steps, not one
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            <code>fetch(url)</code> is the browser's built-in HTTP client. The one thing to
+            burn in: it takes <strong>two</strong> awaits, because a response arrives in two
+            parts — first the headers/status, then the body.
+          </p>
+
+          <div class="flow">
+            <div class="flow-step">
+              <div class="flow-rail"><div class="flow-bullet">1</div><div class="flow-line"></div></div>
+              <div class="flow-body">
+                <div class="fb-title"><code>const res = await fetch(url)</code></div>
+                <div class="fb-text">Resolves as soon as the <strong>Response</strong> headers arrive. <code>res</code> holds <code>res.status</code> (e.g. 200), <code>res.ok</code>, and headers — but <em>not yet</em> the parsed body.</div>
+              </div>
+            </div>
+            <div class="flow-step">
+              <div class="flow-rail"><div class="flow-bullet">2</div><div class="flow-line"></div></div>
+              <div class="flow-body">
+                <div class="fb-title"><code>const data = await res.json()</code></div>
+                <div class="fb-text">Reads the body to completion and parses the JSON. That's <em>also</em> async (the body may still be streaming in), so it returns a Promise too — hence the second <code>await</code>.</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="callout callout--warn">
+            <span class="callout-tag">The famous gotcha: fetch does NOT reject on 404/500</span>
+            <p style="margin:0">
+              A <code>404</code> or <code>500</code> is still "a response that arrived," so
+              <code>fetch</code> considers it a <em>success</em> and resolves normally. It only
+              rejects when the request couldn't be made at all (network down, DNS fail, blocked
+              by the browser). So you check HTTP errors yourself with <code>res.ok</code> (true
+              for 200–299). Forgetting this is a classic bug — you try to
+              <code>.json()</code> an error page and get confused.
+            </p>
+          </div>
+
+          <div class="code">
+            <div class="code-bar">
+              <span class="code-lang">js — the full idiom, with error handling (illustrative)</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code>async function load() {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`); // catch 404/500 yourself
+    const data = await res.json();
+    console.log(data);
+  } catch (err) {
+    console.error('request failed:', err);              // network error OR the throw above
+  }
+}</code></pre>
+          </div>
+
+          <p>
+            Notice <code>await</code> lets you use a plain <code>try/catch</code> for async
+            errors — the same error handling you already know, no special callback needed. And
+            when you point this at your backend, <code>data</code> will be exactly the JSON
+            array Laravel serialized from your <code>/test-php-array</code> route — the
+            array-becomes-JSON rule from M1-02, now arriving in JavaScript.
+          </p>
+
+          <!-- ============================================================
+               SECTION 5 — check yourself
+               ============================================================ -->
+          <h2 id="check" data-toc="Check yourself">
+            <span class="h2-index">05</span>Check yourself
+          </h2>
+          <hr class="section-rule" />
+          <p>Predict each before revealing it.</p>
+
+          <div data-widget="quiz" data-kicker="Quiz" data-title="Predict the behaviour">
+            <script type="application/json">
+            {
+              "questions": [
+                {
+                  "q": "What does `fetch(url)` give you back?",
+                  "options": [
+                    "A Promise that resolves to a Response object — you read the body in a second step.",
+                    "The response data (the parsed JSON) directly.",
+                    "The HTML of the page at that URL."
+                  ],
+                  "answer": 0,
+                  "why": "fetch returns a Promise<Response>. The Response carries status and headers; you get the actual data with a second async step like res.json(). That's why the idiom has two awaits."
+                },
+                {
+                  "q": "Why does `const data = await res.json()` need its own await?",
+                  "options": [
+                    "Reading and parsing the response body is itself asynchronous, so json() also returns a Promise.",
+                    "It's a typo — one await is always enough.",
+                    "Because JSON parsing is slower than reading text."
+                  ],
+                  "answer": 0,
+                  "why": "The first await only gets you the headers/status. The body may still be arriving; res.json() reads it to completion and parses it, which is async — so it returns a Promise you await too."
+                },
+                {
+                  "q": "Does `await fetch(...)` freeze the whole browser tab while it waits?",
+                  "options": [
+                    "Yes — nothing else can happen until it returns.",
+                    "No — it suspends only that async function; the event loop keeps the page responsive.",
+                    "Only if the server takes more than a second."
+                  ],
+                  "answer": 1,
+                  "why": "await is non-blocking: it yields control back to the event loop, which keeps painting and handling input. Only your async function is paused — the opposite of a blocking read() on the UI thread."
+                },
+                {
+                  "q": "You fetch a URL that returns HTTP 404. What does the fetch promise do?",
+                  "options": [
+                    "It rejects, so you land in catch automatically.",
+                    "It throws before the request is even sent.",
+                    "It RESOLVES normally — a 404 is still a response. You must check res.ok yourself."
+                  ],
+                  "answer": 2,
+                  "why": "fetch only rejects when no response could be obtained (network failure). A 404/500 is a delivered response, so it resolves — you detect HTTP errors with res.ok or res.status and handle them yourself."
+                }
+              ]
+            }
+            </script>
+          </div>
+
+          <!-- ============================================================
+               SECTION 6 — checkpoint
+               ============================================================ -->
+          <h2 id="checkpoint" data-toc="Checkpoint">
+            <span class="h2-index">06</span>Checkpoint — pull your JSON from the console
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            No files to edit — this is a <strong>console experiment</strong>. The browser
+            console allows top-level <code>await</code>, so you can run <code>fetch</code> live
+            and watch it work (the DevTools Console is a real JS REPL). Have both servers
+            running first.
+          </p>
+
+          <div data-widget="checklist"
+               data-progress-id="m1-06"
+               data-next="Bring Claude the exact result — your JSON array, or the exact red error text. Either way, NEXT is CORS: why the browser is the gatekeeper, how to let Vue talk to Laravel — then we wire this fetch into App.vue and finish Milestone 1."
+               data-kicker="Checkpoint"
+               data-title="fetch your route, live">
+            <script type="application/json">
+            {
+              "items": [
+                "Both servers up: Laravel <code>php artisan serve</code> (:8000) and Vue <code>npm run dev</code> (:5173).",
+                "Open <code>http://localhost:5173</code>, then DevTools → <b>Console</b> (F12).",
+                "<b>Predict first:</b> what will <code>/test-php-array</code> hand back? (Picture the JSON from M1-02 — keys and value types.)",
+                "Run it, one line at a time: <code>const res = await fetch('http://localhost:8000/test-php-array')</code>, then <code>const data = await res.json()</code>, then <code>data</code>.",
+                "<b>Most likely you hit a wall:</b> a red <i>“blocked by CORS policy”</i> / <code>Failed to fetch</code> error instead of your data. That's EXPECTED — copy the exact message; it's the entire next lesson. (If it just worked, note the array you got instead.)",
+                "Peek at the <b>Network</b> tab and find the request. Notice it was actually <i>sent</i> to Laravel — a hint about <b>who</b> did the blocking. Bring me what you see."
+              ]
+            }
+            </script>
+          </div>
+
+          <div class="callout callout--key">
+            <span class="callout-tag">You're done when</span>
+            <p style="margin:0">
+              You can explain what <code>fetch</code> returns and why the idiom needs
+              <em>two</em> awaits — <strong>and</strong> you've actually run the fetch in the
+              console and recorded what came back (your JSON array, or the CORS error text).
+              Hitting the wall counts as success here; it's a set-up, not a failure.
+            </p>
+          </div>
+
+          <div class="callout callout--warn">
+            <span class="callout-tag">If you get a different error</span>
+            <p style="margin:0">
+              <code>Failed to fetch</code> with a CORS note is the expected one. But if you see
+              <code>ERR_CONNECTION_REFUSED</code>, your Laravel server isn't running (start it).
+              If <code>data</code> is <code>undefined</code>, you likely skipped the second
+              <code>await</code>. Copy the exact text and bring it — the error <em>is</em> the
+              lesson.
+            </p>
+          </div>
+
+          <p>
+            Come back with your result — the array or the error. <strong>Then</strong> we
+            unpack <strong>CORS</strong>: why the browser (not Laravel) blocked you, and how to
+            grant the Vue app permission to call the API. Once that's open, we drop this exact
+            <code>fetch</code> into <code>App.vue</code>, render the data on the page, and
+            Milestone 1 — a real round-trip — is complete.
+          </p>
+
+          <!-- ---- page end ---- -->
+          <nav class="page-end">
+            <a class="btn btn--ghost" href="m1-05-how-vue-boots.html">← M1-05</a>
+            <span class="pe-label">Next concept unlocks when this checkpoint is done</span>
+          </nav>
+
+          <footer class="site-foot">
+            <span>M1-06 · Async JavaScript &amp; fetch</span>
+            <span class="mono">CTF Platform — study site</span>
+          </footer>
+
+        </article>
+      </div>
+    </main>
+
+  </div>
+
+  <script src="assets/js/app.js"></script>
+  <script src="assets/js/widgets.js"></script>
+</body>
+</html>

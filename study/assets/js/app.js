@@ -77,6 +77,13 @@
           sub: "The empty #app div, CSS selectors, and createApp().mount() under the hood",
           file: "m1-05-how-vue-boots.html",
           state: "available"
+        },
+        {
+          code: "M1-06", id: "m1-06",
+          title: "Async JavaScript & fetch",
+          sub: "Promises as futures, async/await, the fetch API, pulling your JSON live",
+          file: "m1-06-async-javascript-and-fetch.html",
+          state: "available"
         }
       ]
     },
