@@ -139,6 +139,13 @@
           sub: "A line-by-line tour of User.php: namespaces, attributes, traits, casts",
           file: "m2-05-anatomy-of-a-model.html",
           state: "available"
+        },
+        {
+          code: "M2-06", id: "m2-06",
+          title: "The Login Endpoint",
+          sub: "Find the user, verify with Hash::check, fail safely, issue a token",
+          file: "m2-06-the-login-endpoint.html",
+          state: "available"
         }
       ]
     },

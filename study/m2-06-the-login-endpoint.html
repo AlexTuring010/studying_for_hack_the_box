@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>M2-06 · The Login Endpoint — CTF Platform Study</title>
+  <meta name="description" content="Build POST /api/login: find the user by email, verify the password with Hash::check (the counterpart to the hashed cast), fail safely with one generic message to avoid user enumeration, and issue a Sanctum token." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%235fe3a1'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body class="page-concept" data-page="m2-06">
+
+  <!-- mobile top bar -->
+  <div class="topbar">
+    <button class="icon-btn" id="nav-toggle" aria-label="Toggle navigation">☰</button>
+    <div class="brand">
+      <div class="brand-mark">⚑</div>
+      <div class="brand-text"><b>CTF Platform</b><span>study</span></div>
+    </div>
+  </div>
+  <div class="nav-overlay" id="nav-overlay"></div>
+
+  <div class="layout">
+
+    <!-- ============ SIDEBAR ============ -->
+    <aside class="sidebar">
+      <a href="index.html" class="brand" style="text-decoration:none">
+        <div class="brand-mark">⚑</div>
+        <div class="brand-text">
+          <b>CTF Platform</b>
+          <span>study companion</span>
+        </div>
+      </a>
+      <nav id="sidebar-nav"><!-- built by app.js --></nav>
+    </aside>
+
+    <!-- ============ MAIN ============ -->
+    <main class="main">
+      <div class="content">
+        <article class="article">
+
+          <!-- ---- header ---- -->
+          <header class="concept-head">
+            <div class="breadcrumb">
+              <a href="index.html">Study</a>
+              <span class="sep">/</span>
+              <span>Milestone 2 — Users Exist</span>
+              <span class="sep">/</span>
+              <span>Concept 06</span>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <span class="pill pill--ms">M2 · Users Exist</span>
+              <span class="pill pill--idx">Concept 6</span>
+            </div>
+            <h1 class="concept-title">The Login Endpoint</h1>
+            <div class="concept-meta">
+              <span>🎯 &nbsp;Goal: <code>POST /api/login</code> that hands back a token</span>
+              <span>🔐 &nbsp;The other half of hashing — verifying, not storing</span>
+              <span>🧩 &nbsp;Concept: <code>Hash::check</code>, safe failure, tokens</span>
+            </div>
+          </header>
+
+          <div class="callout callout--key">
+            <span class="callout-tag">Read me first</span>
+            <p>
+              Registration <em>stored</em> a hashed password. Login is the mirror image: someone
+              hands you an email and a password, and you have to decide <strong>"is this really
+              them?"</strong> — <em>without</em> the server ever having kept the real password.
+              That's four moves: <strong>validate</strong> the input, <strong>find</strong> the
+              user, <strong>verify</strong> the password, and — on success — <strong>issue a
+              token</strong> so they stay logged in.
+            </p>
+            <p style="margin-bottom:0">
+              Every piece you need — the query, <code>Hash::check</code>, the generic-error throw,
+              <code>createToken</code> — is shown below as a concrete line. What's <em>yours</em> to
+              write is the route: choosing the login validation rules, wiring the pieces together, and
+              deciding what to return. I'll also teach a real security idea here — <strong>user
+              enumeration</strong> — that most tutorials get wrong.
+            </p>
+          </div>
+
+          <div class="onpage" id="on-this-page"><!-- built by app.js --></div>
+
+          <!-- ============================================================
+               SECTION 1 — the problem
+               ============================================================ -->
+          <h2 id="problem" data-toc="The other half of hashing">
+            <span class="h2-index">01</span>Login is the other half of hashing
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            Back in M2-03 you deliberately made the password <strong>unreadable</strong>: the
+            <code>'password' =&gt; 'hashed'</code> cast stored a one-way bcrypt hash, and you can't
+            turn a hash back into the password. That was the whole point — a leaked database gives
+            up no passwords.
+          </p>
+          <p>
+            But now it creates a puzzle: at login the user types their password again, and you have
+            <em>nothing to compare it to</em>, because you never stored the real one. The answer is
+            the same trick, run forwards: <strong>hash what they just typed and compare the two
+            hashes.</strong> If the fresh hash matches the stored hash, the passwords matched — and
+            you learned that <em>without ever holding the real password</em>.
+          </p>
+
+          <div class="code">
+            <div class="code-bar">
+              <span class="code-lang">register vs login — same hashing, opposite directions</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code>register:  store  hash("hunter2")       →  $2y$12$Xk9…   (kept in the DB)
+login:     is     hash(typed_password)  ==  the stored hash?   → yes / no
+           the real password is never written down, on either trip</code></pre>
+          </div>
+
+          <div class="callout callout--note">
+            <span class="callout-tag">You won't hash by hand — Laravel does the compare</span>
+            <p style="margin:0">
+              You will <strong>not</strong> write <code>hash(...)</code> and a string compare
+              yourself — there's a subtlety (the salt, below) that makes a naive compare wrong.
+              Laravel gives you one function, <code>Hash::check</code>, that does the "hash the
+              input and compare correctly" step for you. Your job is to <em>call</em> it in the
+              right place.
+            </p>
+          </div>
+
+          <!-- ============================================================
+               SECTION 2 — the four moves
+               ============================================================ -->
+          <h2 id="shape" data-toc="Shape of a login handler">
+            <span class="h2-index">02</span>The shape of a login handler
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            Before any code, hold the whole flow in your head. A login endpoint is these four steps,
+            in order — and a <strong>fork</strong>: it either fails safely or hands back a token.
+          </p>
+
+          <div class="flow">
+            <div class="flow-step">
+              <div class="flow-rail"><div class="flow-bullet">1</div><div class="flow-line"></div></div>
+              <div class="flow-body">
+                <div class="fb-title">Validate the input</div>
+                <div class="fb-text">Same tool as register — <code>$request-&gt;validate([...])</code> — but <em>different rules</em> (§3). Just enough to know an email and a password arrived.</div>
+              </div>
+            </div>
+            <div class="flow-step">
+              <div class="flow-rail"><div class="flow-bullet">2</div><div class="flow-line"></div></div>
+              <div class="flow-body">
+                <div class="fb-title">Find the user by email</div>
+                <div class="fb-text"><code>User::where('email', …)-&gt;first()</code> — the row for that email, or <code>null</code> if there's no such account (§4).</div>
+              </div>
+            </div>
+            <div class="flow-step">
+              <div class="flow-rail"><div class="flow-bullet">3</div><div class="flow-line"></div></div>
+              <div class="flow-body">
+                <div class="fb-title">Verify — or fail safely</div>
+                <div class="fb-text">No user, <em>or</em> <code>Hash::check</code> says the password is wrong → throw <b>one generic</b> error (§5). Both failures look identical from outside.</div>
+              </div>
+            </div>
+            <div class="flow-step">
+              <div class="flow-rail"><div class="flow-bullet">4</div><div class="flow-line"></div></div>
+              <div class="flow-body">
+                <div class="fb-title">Issue a token &amp; respond</div>
+                <div class="fb-text">Credentials good → mint a Sanctum token with <code>createToken()</code> and return it with the user (§6). That token is their "logged-in" pass.</div>
+              </div>
+            </div>
+          </div>
+
+          <p style="margin-bottom:0">
+            The rest of this page is those four boxes, one at a time. You've already met the
+            imports you'll need — two are new:
+          </p>
+
+          <div class="code">
+            <div class="code-bar">
+              <span class="code-lang">routes/api.php — imports (group these at the TOP)</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code>use App\Models\User;                            // already there
+use Illuminate\Http\Request;                    // already there
+use Illuminate\Support\Facades\Hash;            // NEW — for Hash::check()
+use Illuminate\Validation\ValidationException;  // NEW — for the generic error</code></pre>
+          </div>
+
+          <!-- ============================================================
+               SECTION 3 — validating login input
+               ============================================================ -->
+          <h2 id="validate" data-toc="Validating login input">
+            <span class="h2-index">03</span>Login validation ≠ registration validation
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            It's tempting to copy your register rules. Don't — login is a <em>different question</em>,
+            so three of those rules are wrong here. Reason through each:
+          </p>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Rule</th><th>Register</th><th>Login</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>email</code> present &amp; shaped like an email</td>
+                  <td>✅ yes</td>
+                  <td>✅ <b>yes</b> — you still need a well-formed email to look up</td>
+                </tr>
+                <tr>
+                  <td><code>password</code> present</td>
+                  <td>✅ yes</td>
+                  <td>✅ <b>yes</b> — you need something to check</td>
+                </tr>
+                <tr>
+                  <td><code>unique:users</code> on email</td>
+                  <td>✅ yes (must be new)</td>
+                  <td>❌ <b>no</b> — at login you <em>want</em> the email to already exist; <code>unique</code> would reject exactly the people allowed in</td>
+                </tr>
+                <tr>
+                  <td><code>confirmed</code> on password</td>
+                  <td>✅ yes (typed twice)</td>
+                  <td>❌ <b>no</b> — a login form has one password box, no <code>password_confirmation</code></td>
+                </tr>
+                <tr>
+                  <td><code>min:8</code> on password</td>
+                  <td>✅ yes (setting a new one)</td>
+                  <td>❌ <b>no</b> — you're checking against a stored hash, not enforcing a policy; length is irrelevant here</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <p style="margin-bottom:0">
+            So the login rules boil down to: <strong>email — required, and email-shaped;
+            password — required.</strong> That's the array you'll write. Notice validation here
+            only proves the fields <em>arrived</em> and are the right type — it says nothing about
+            whether the credentials are <em>correct</em>. That's the next two steps' job.
+          </p>
+
+          <!-- ============================================================
+               SECTION 4 — finding the user
+               ============================================================ -->
+          <h2 id="find" data-toc="Finding the user">
+            <span class="h2-index">04</span>Finding the user: <code>where(…)-&gt;first()</code>
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            You met this exact line in M2-05. It's the query-builder way to fetch one row by a
+            column:
+          </p>
+
+          <div class="code">
+            <div class="code-bar">
+              <span class="code-lang">php — fetch the user for an email (textbook line)</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code>$user = User::where('email', $email)-&gt;first();
+// → the matching User model, or  null  if no account has that email</code></pre>
+          </div>
+
+          <p>
+            The important choice is <code>first()</code> <strong>and not</strong>
+            <code>firstOrFail()</code>. They differ only in the "nothing matched" case:
+          </p>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Method</th><th>No match →</th><th>Good for login?</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>-&gt;first()</code></td>
+                  <td>returns <code>null</code> — <em>you</em> decide what happens</td>
+                  <td>✅ yes — lets you fold "no such email" into your own generic failure</td>
+                </tr>
+                <tr>
+                  <td><code>-&gt;firstOrFail()</code></td>
+                  <td>throws → Laravel sends a <code>404 Not Found</code></td>
+                  <td>❌ no — a 404 <em>announces</em> "that email doesn't exist" (see §5)</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <p style="margin-bottom:0">
+            So use <code>first()</code>, keep the result (which may be <code>null</code>), and
+            handle the null yourself in the next step — deliberately, not by letting the framework
+            blurt out a 404.
+          </p>
+
+          <!-- ============================================================
+               SECTION 5 — verify & fail safely
+               ============================================================ -->
+          <h2 id="verify" data-toc="Verify &amp; fail safely">
+            <span class="h2-index">05</span>Verify the password — and fail <em>safely</em>
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            Now the heart of it. <code>Hash::check</code> takes the <strong>plain</strong> password
+            the user typed and the <strong>stored hash</strong>, and returns a boolean:
+          </p>
+
+          <div class="code">
+            <div class="code-bar">
+              <span class="code-lang">php — verify a password (textbook line)</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code>Hash::check($plainPassword, $user->password);
+//  true   if $plainPassword hashes to the stored hash
+//  false  otherwise
+//  arg order matters: PLAIN first, the STORED HASH second</code></pre>
+          </div>
+
+          <div class="callout callout--note">
+            <span class="callout-tag">Why not just hash it yourself and compare strings?</span>
+            <p style="margin:0">
+              Because bcrypt mixes a random <strong>salt</strong> into every hash — so hashing
+              <code>"hunter2"</code> twice gives you <em>two different strings</em>. A plain
+              <code>==</code> between them would almost always say "no match," and nobody could ever
+              log in. <code>Hash::check</code> reads the salt back out of the stored hash and
+              recomputes correctly. <strong>Never compare hash strings by hand.</strong>
+            </p>
+          </div>
+
+          <div class="callout callout--note">
+            <span class="callout-tag">Why not <code>Auth::attempt()</code>, which tutorials love?</span>
+            <p style="margin:0">
+              <code>Auth::attempt()</code> is for <strong>session</strong> logins — it checks the
+              password <em>and</em> logs the user into a server-side session backed by a cookie.
+              We're building a <strong>stateless token API</strong> (M2-04): no sessions, the client
+              proves itself with a bearer token each request. So we do the two jobs explicitly —
+              verify with <code>Hash::check</code>, then issue a token — and skip the session
+              machinery entirely.
+            </p>
+          </div>
+
+          <h3 style="margin-top:26px">The security idea: don't leak <em>which</em> part was wrong</h3>
+          <p>
+            A login can fail two ways: <strong>(a)</strong> no account with that email, or
+            <strong>(b)</strong> the email exists but the password is wrong. The naïve instinct is to
+            say which — "no account found" vs "wrong password." <strong>Don't.</strong> That
+            difference is a gift to an attacker:
+          </p>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>If your messages differ…</th><th>…an attacker learns</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>"No account with that email"</td>
+                  <td>this email is <b>not</b> registered</td>
+                </tr>
+                <tr>
+                  <td>"Wrong password"</td>
+                  <td>this email <b>is</b> registered — now they can target it (phishing, credential-stuffing, a focused password guess)</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <p>
+            That probing is called <strong>user enumeration</strong>. You close it by making both
+            failures <strong>identical</strong> — same status, same message. Laravel gives you a
+            clean way to raise exactly that, matching the <code>422</code> validation errors your
+            frontend already handles:
+          </p>
+
+          <div class="code">
+            <div class="code-bar">
+              <span class="code-lang">php — one generic credential error (textbook shape)</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code>use Illuminate\Validation\ValidationException;
+
+throw ValidationException::withMessages([
+    'email' =&gt; ['The provided credentials are incorrect.'],
+]);
+// Laravel renders this as a 422 with { "message": …, "errors": { "email": [ … ] } } —
+// the SAME shape as $request->validate() failures your Vue form already reads</code></pre>
+          </div>
+
+          <p>
+            Putting the message under the <code>email</code> key just means your form shows it near
+            the email field; the string itself is deliberately vague about <em>why</em> it failed.
+          </p>
+
+          <div class="callout callout--key">
+            <span class="callout-tag">Your move: combine the two failure cases into one</span>
+            <p style="margin:0">
+              Here's the assembly I'm leaving to you (this is the learning): after the lookup, you
+              have a <code>$user</code> that's either a model or <code>null</code>, and a plain
+              password from the request. You want to throw that generic error when <em>either</em>
+              there's no user <em>or</em> <code>Hash::check</code> returns false — and, crucially, to
+              throw the <strong>same</strong> error in both cases. Write that one condition, throw the
+              generic exception inside it, and let the code fall through to issuing the token (§6) only
+              when both are fine. (Guarding with <code>!$user</code> first also means you never call
+              <code>Hash::check</code> on <code>null</code>.)
+            </p>
+          </div>
+
+          <div class="callout callout--note">
+            <span class="callout-tag">Optional: the idiomatic <code>auth.failed</code> string</span>
+            <p style="margin:0">
+              A hard-coded English message is perfectly fine. Laravel <em>also</em> ships a
+              conventional translation key for this exact case, <code>auth.failed</code> ("These
+              credentials do not match our records."). To use it as <code>__('auth.failed')</code>
+              you first publish the language files with <code>php artisan lang:publish</code> —
+              otherwise <code>__('auth.failed')</code> just returns the literal string
+              <code>"auth.failed"</code>, which isn't what you want. For now a plain string is the
+              simpler choice; the security point (one identical message for both failures) is the
+              same either way.
+            </p>
+          </div>
+
+          <!-- ============================================================
+               SECTION 6 — issue the token
+               ============================================================ -->
+          <h2 id="token" data-toc="Issue the token &amp; respond">
+            <span class="h2-index">06</span>Issue the token &amp; respond
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            If the code reaches here, the credentials are good. Mint a token — the same call you ran
+            in tinker back in M2-04, now living in the endpoint:
+          </p>
+
+          <div class="code">
+            <div class="code-bar">
+              <span class="code-lang">php — mint a Sanctum token (textbook line)</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code>$token = $user->createToken('auth-token')->plainTextToken;
+// the RAW token string — Sanctum shows it to you ONCE here.
+// The DB stores only a SHA-256 hash of it (same never-store-raw rule as passwords).</code></pre>
+          </div>
+
+          <p>
+            The string you pass (<code>'auth-token'</code>) is just a human label for the token in
+            the <code>personal_access_tokens</code> table — handy later for "revoke my phone's
+            token." Now return the token together with the user, so the frontend has both:
+          </p>
+
+          <ul>
+            <li>
+              <strong>What to return</strong> is your call — a shape like
+              <code>{ token, user }</code> is the norm. Returning the whole <code>$user</code> is
+              safe: <code>#[Hidden]</code> strips the password on the way out (M2-05).
+            </li>
+            <li>
+              <strong>What the frontend does with it</strong> (next milestones): store the token,
+              then send it on protected requests as
+              <code>Authorization: Bearer &lt;token&gt;</code> — the bearer scheme from M2-04. That's
+              how the user "stays logged in."
+            </li>
+          </ul>
+
+          <div class="callout callout--note">
+            <span class="callout-tag">Fine for now: each login mints a fresh token</span>
+            <p style="margin:0">
+              Log in three times and you'll create three valid tokens — that's expected and fine for
+              the MVP (it's literally "three logged-in devices"). Revoking old tokens on login is a
+              polish item for later, not something to solve today.
+            </p>
+          </div>
+
+          <!-- ============================================================
+               SECTION 7 — check yourself
+               ============================================================ -->
+          <h2 id="check" data-toc="Check yourself">
+            <span class="h2-index">07</span>Check yourself
+          </h2>
+          <hr class="section-rule" />
+          <p>Predict each before revealing it.</p>
+
+          <div data-widget="quiz" data-kicker="Quiz" data-title="Predict the behaviour">
+            <script type="application/json">
+            {
+              "questions": [
+                {
+                  "q": "Why call Hash::check($plain, $user->password) instead of hashing the input and comparing the two hash strings with ==?",
+                  "options": [
+                    "Hash::check is just faster than ==.",
+                    "bcrypt mixes a random salt into every hash, so the same password hashes to a DIFFERENT string each time; == would nearly always say 'no match'. Hash::check reads the salt out of the stored hash and compares correctly.",
+                    "PHP doesn't allow comparing strings with ==."
+                  ],
+                  "answer": 1,
+                  "why": "The salt makes each hash unique, so a byte-for-byte compare of two hashes of the same password fails. Hash::check recomputes using the salt embedded in the stored hash. Never compare hash strings by hand."
+                },
+                {
+                  "q": "A login uses an email that isn't registered. Why return the SAME generic error as a wrong password, rather than 'no account with that email'?",
+                  "options": [
+                    "To save a database query.",
+                    "Anti-enumeration: a distinct 'no such email' vs 'wrong password' lets an attacker probe which emails have accounts, then target them. One identical message for both leaks nothing.",
+                    "Because Laravel forbids custom error messages."
+                  ],
+                  "answer": 1,
+                  "why": "Different messages are a side channel: they reveal which emails are registered (user enumeration), fuel for phishing and credential-stuffing. Fold both failure cases into one identical 422."
+                },
+                {
+                  "q": "Why use User::where('email',$e)->first() and NOT ->firstOrFail() at login?",
+                  "options": [
+                    "firstOrFail() is deprecated.",
+                    "firstOrFail() throws a 404 when the email doesn't exist — which both leaks that the email is unknown and is the wrong status for a login failure. first() returns null, so you handle it yourself with one generic 422.",
+                    "They behave identically; it makes no difference."
+                  ],
+                  "answer": 1,
+                  "why": "firstOrFail() → 404 distinguishes 'no such email' from 'wrong password' (an enumeration leak) and is the wrong status anyway. first() returns null, letting you merge both failures into a single generic error."
+                },
+                {
+                  "q": "Which validation rules fit LOGIN?",
+                  "options": [
+                    "The same as register: email required|email|unique:users, password required|min:8|confirmed.",
+                    "email required and email-shaped; password required. No unique (you WANT the email to exist), no confirmed (there's no second password box), no min:8 (you're matching an existing hash, not setting a new password).",
+                    "None — Hash::check does all the checking, so validation is unnecessary."
+                  ],
+                  "answer": 1,
+                  "why": "Login only needs the two fields present and a well-formed email. unique:users would reject exactly the accounts allowed to log in; confirmed expects a password_confirmation field logins don't have; min:8 is a register-time policy. Validation still matters — it guarantees the fields arrived before you query."
+                }
+              ]
+            }
+            </script>
+          </div>
+
+          <!-- ============================================================
+               SECTION 8 — checkpoint
+               ============================================================ -->
+          <h2 id="checkpoint" data-toc="Checkpoint">
+            <span class="h2-index">08</span>Checkpoint — build <code>POST /api/login</code>
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            Add a <code>login</code> route to <code>routes/api.php</code>, next to
+            <code>register</code>. Every line you need is shown above; <strong>you</strong> write the
+            route, pick the validation rules, and wire the four steps together.
+          </p>
+
+          <div data-widget="checklist"
+               data-progress-id="m2-06"
+               data-next="Tell Claude login returns a token on good creds and one generic 422 on bad email OR bad password. Next (M2-07): PROTECTING a route — auth:sanctum + $request->user(), so that token actually unlocks something."
+               data-kicker="Checkpoint"
+               data-title="A working login that issues a token">
+            <script type="application/json">
+            {
+              "items": [
+                "Add the two new imports at the TOP of <code>routes/api.php</code>, grouped with the others: <code>use Illuminate\\Support\\Facades\\Hash;</code> and <code>use Illuminate\\Validation\\ValidationException;</code>. (While you're there, move your existing mid-file <code>use</code> lines up top too — imports belong grouped at the top.)",
+                "Add <code>Route::post('/login', ...)</code>. <b>Validate</b> the input with login-appropriate rules (§3): email required &amp; email-shaped, password required — <b>not</b> the register rules.",
+                "<b>Find</b> the user: <code>User::where('email', ...)->first()</code> (keep the result — it may be <code>null</code>).",
+                "<b>Verify &amp; fail safely:</b> combine both failure cases — no matching user, <b>or</b> <code>Hash::check</code> reports a wrong password — into one guard that <code>throw</code>s <code>ValidationException::withMessages([...])</code> with ONE generic message under <code>'email'</code> (see §5). The <b>same</b> message for both.",
+                "<b>On success</b>, mint a token with <code>$user->createToken('auth-token')->plainTextToken</code> and return it with the user — e.g. <code>{ token, user }</code>.",
+                "Test good creds → 2xx with a <code>token</code> string, and a <code>user</code> that has <b>no</b> password field.",
+                "Test wrong password → <code>422</code> generic message. Test a nonexistent email → the <b>SAME</b> <code>422</code> message (NOT a 404, NOT a different string).",
+                "Confirm the token is real: <code>php artisan tinker</code> → <code>DB::table('personal_access_tokens')->count()</code> (the same way you inspected tokens in M2-04) went up, and the stored <code>token</code> column is a hash, not your raw token.",
+                "Commit (e.g. <code>feat(backend): add /api/login issuing a Sanctum token</code>) and push."
+              ]
+            }
+            </script>
+          </div>
+
+          <div class="callout callout--key">
+            <span class="callout-tag">You're done when</span>
+            <p style="margin:0">
+              Correct email + password returns a token (and a password-free user), <em>and</em> a
+              wrong password and an unknown email return the <strong>identical</strong> generic
+              <code>422</code> — <strong>and</strong> you can explain why <code>Hash::check</code>
+              (not a string compare), why <code>first()</code> (not <code>firstOrFail()</code>), and
+              why one message for both failures.
+            </p>
+          </div>
+
+          <div class="callout callout--warn">
+            <span class="callout-tag">If something's off</span>
+            <p style="margin:0">
+              <b>Always the generic error, even with the right password?</b> Check
+              <code>Hash::check</code> arg order — plain password first, <code>$user->password</code>
+              (the stored hash) second — and that you're not re-hashing the input. <b>Getting a 404
+              for unknown emails?</b> You used <code>firstOrFail()</code>; switch to
+              <code>first()</code>. <b>"Class 'Hash' / 'ValidationException' not found"?</b> The new
+              imports are missing or misspelled. <b>Token is null / <code>createToken</code>
+              undefined?</b> The <code>HasApiTokens</code> trait isn't on <code>User</code>, or the
+              <code>personal_access_tokens</code> table wasn't migrated (M2-04). Paste me the error
+              and what the response body shows.
+            </p>
+          </div>
+
+          <p>
+            When login hands back a token on good credentials and one indistinguishable error on bad
+            ones, come back. <strong>Then M2-07:</strong> we make that token <em>do</em> something —
+            protect a route with the <code>auth:sanctum</code> middleware so only a valid
+            <code>Bearer</code> token gets in, and read the current user with
+            <code>$request-&gt;user()</code>. That's the loop closing: register → login →
+            authenticated request.
+          </p>
+
+          <!-- ---- page end ---- -->
+          <nav class="page-end">
+            <a class="btn btn--ghost" href="m2-05-anatomy-of-a-model.html">← M2-05</a>
+            <span class="pe-label">Next concept unlocks when this checkpoint is done</span>
+          </nav>
+
+          <footer class="site-foot">
+            <span>M2-06 · The Login Endpoint</span>
+            <span class="mono">CTF Platform — study site</span>
+          </footer>
+
+        </article>
+      </div>
+    </main>
+
+  </div>
+
+  <script src="assets/js/app.js"></script>
+  <script src="assets/js/widgets.js"></script>
+</body>
+</html>
