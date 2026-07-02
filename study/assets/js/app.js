@@ -63,6 +63,13 @@
           sub: "The staging model, keeping secrets out of git, a scoped commit",
           file: "m1-03-your-first-commit.html",
           state: "available"
+        },
+        {
+          code: "M1-04", id: "m1-04",
+          title: "Standing Up Vue",
+          sub: "The frontend toolchain, creating the Vue app, two servers at once",
+          file: "m1-04-standing-up-vue.html",
+          state: "available"
         }
       ]
     },

@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>M1-04 · Standing Up Vue — CTF Platform Study</title>
+  <meta name="description" content="Stand up the second half of the app — the Vue frontend. What Node/npm/Vite are (bridged from Composer), creating the app, running the dev server, and the two-servers mental model." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%235fe3a1'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body class="page-concept" data-page="m1-04">
+
+  <!-- mobile top bar -->
+  <div class="topbar">
+    <button class="icon-btn" id="nav-toggle" aria-label="Toggle navigation">☰</button>
+    <div class="brand">
+      <div class="brand-mark">⚑</div>
+      <div class="brand-text"><b>CTF Platform</b><span>study</span></div>
+    </div>
+  </div>
+  <div class="nav-overlay" id="nav-overlay"></div>
+
+  <div class="layout">
+
+    <!-- ============ SIDEBAR ============ -->
+    <aside class="sidebar">
+      <a href="index.html" class="brand" style="text-decoration:none">
+        <div class="brand-mark">⚑</div>
+        <div class="brand-text">
+          <b>CTF Platform</b>
+          <span>study companion</span>
+        </div>
+      </a>
+      <nav id="sidebar-nav"><!-- built by app.js --></nav>
+    </aside>
+
+    <!-- ============ MAIN ============ -->
+    <main class="main">
+      <div class="content">
+        <article class="article">
+
+          <!-- ---- header ---- -->
+          <header class="concept-head">
+            <div class="breadcrumb">
+              <a href="index.html">Study</a>
+              <span class="sep">/</span>
+              <span>Milestone 1 — Plumbing</span>
+              <span class="sep">/</span>
+              <span>Concept 04</span>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <span class="pill pill--ms">M1 · Plumbing</span>
+              <span class="pill pill--idx">Concept 4</span>
+            </div>
+            <h1 class="concept-title">Standing Up Vue</h1>
+            <div class="concept-meta">
+              <span>🎯 &nbsp;Goal: a second app — the frontend — running in your browser</span>
+              <span>🌉 &nbsp;Bridge: the JS toolchain is Composer all over again</span>
+              <span>🧩 &nbsp;Concept: two apps, two servers, two ports</span>
+            </div>
+          </header>
+
+          <div class="callout callout--key">
+            <span class="callout-tag">Read me first</span>
+            <p>
+              You have a backend that returns JSON — but nobody's <em>using</em> that JSON
+              yet. A backend with no frontend is a kitchen with no dining room: the food's
+              being cooked, there's just no room to serve it. This lesson builds the dining
+              room — the <strong>Vue</strong> app that will (next lesson) fetch your route's
+              data and show it to a human.
+            </p>
+            <p style="margin-bottom:0">
+              Today's job is narrow on purpose: <strong>just get Vue running</strong> in the
+              browser, side by side with Laravel. The two <em>talking</em> to each other is
+              the very next lesson — and the moment Milestone 1 is complete.
+            </p>
+          </div>
+
+          <div class="onpage" id="on-this-page"><!-- built by app.js --></div>
+
+          <!-- ============================================================
+               SECTION 1 — two apps, not one
+               ============================================================ -->
+          <h2 id="split" data-toc="Two apps, not one">
+            <span class="h2-index">01</span>Two apps, not one
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            Back in M1-02 you learned the plan: <strong>Laravel emits data (JSON), the
+            browser assembles the page.</strong> That sentence has a big consequence we can
+            now make real — your project is <em>two separate applications</em>, each with
+            its own job, its own folder, and its own running server:
+          </p>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th></th><th>Backend</th><th>Frontend</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><b>Framework</b></td><td>Laravel (PHP)</td><td>Vue (JavaScript)</td></tr>
+                <tr><td><b>Lives in</b></td><td><code>builder/backend/</code></td><td><code>builder/frontend/</code> (you'll make this)</td></tr>
+                <tr><td><b>Its job</b></td><td>Serve <strong>data</strong> as JSON over HTTP</td><td>Serve the <strong>UI</strong>; fetch that data and render it</td></tr>
+                <tr><td><b>Runs where</b></td><td>On a server (your machine, for now)</td><td>In the user's <strong>browser</strong></td></tr>
+                <tr><td><b>Dev server</b></td><td><code>php artisan serve</code> → <code>:8000</code></td><td><code>npm run dev</code> → <code>:5173</code></td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="callout callout--bridge">
+            <span class="callout-tag">Bridge — from your React/Next dabbling (light)</span>
+            <p style="margin:0">
+              If your hackathon Next.js app rings a faint bell — same family. A Vue app is a
+              <strong>Single-Page Application</strong>: the browser downloads a JS bundle
+              once, and that JS draws and re-draws the UI, calling an API for data as needed.
+              We're just running the API (Laravel) and the SPA (Vue) as two <em>separate</em>
+              projects instead of one combined Next app, because Hack The Box's real stack
+              keeps them apart. If the Next comparison doesn't help, ignore it — the table
+              above is all you need.
+            </p>
+          </div>
+
+          <!-- ============================================================
+               SECTION 2 — the toolchain (bridged from Composer)
+               ============================================================ -->
+          <h2 id="toolchain" data-toc="The toolchain = Composer again">
+            <span class="h2-index">02</span>The frontend toolchain — you already learned this shape
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            Here's the gift: the JavaScript toolchain is the <em>same shape</em> as the PHP
+            one you met two lessons ago. Every piece has a twin you already understand:
+          </p>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>PHP / Laravel world</th><th>JavaScript / Vue world</th><th>What it is</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>The PHP runtime</td><td><strong>Node.js</strong></td><td>Runs the language <em>outside</em> the browser — needed for the build tools.</td></tr>
+                <tr><td>Composer</td><td><strong>npm</strong></td><td>The package manager: installs libraries, runs scripts.</td></tr>
+                <tr><td><code>composer.json</code></td><td><code>package.json</code></td><td>Declares your dependencies and scripts.</td></tr>
+                <tr><td><code>composer.lock</code></td><td><code>package-lock.json</code></td><td>Pins exact versions. <b>Commit this.</b></td></tr>
+                <tr><td><code>vendor/</code></td><td><code>node_modules/</code></td><td>The downloaded libraries. Generated, huge, <b>git-ignored.</b></td></tr>
+                <tr><td><code>php artisan serve</code></td><td><code>npm run dev</code></td><td>Starts the local dev server and holds the terminal.</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="callout callout--key">
+            <span class="callout-tag">The one that matters most: <code>node_modules/</code> = <code>vendor/</code></span>
+            <p style="margin:0">
+              Everything you learned in M1-03 about <code>vendor/</code> applies verbatim to
+              <code>node_modules/</code>: it's thousands of files you didn't write, rebuilt
+              on demand from the lock file, and it must <strong>never</strong> be committed.
+              Your root <code>.gitignore</code> already lists <code>node_modules/</code> — so
+              you're protected before you even create it. We'll confirm that at the
+              checkpoint.
+            </p>
+          </div>
+
+          <p>
+            The one genuinely new name is <strong>Vite</strong> (say "veet"). It's the
+            frontend's dev server and bundler — the thing <code>npm run dev</code> actually
+            starts. Think of it as <code>php artisan serve</code>'s more powerful cousin: it
+            serves your app on a local port <em>and</em> gives you <strong>hot reload</strong>
+            — edit a file, and the browser updates instantly without a manual refresh.
+          </p>
+
+          <div class="callout callout--note">
+            <span class="callout-tag">Good news: Node is already installed</span>
+            <p style="margin:0">
+              Unlike Laravel in M1-01, you don't have a big install to do — this machine
+              already has Node <code>v22</code> and npm. You'll just <em>verify</em> that at
+              the checkpoint (<code>node --version</code>). If it were ever missing, the fix
+              is one download from <a href="https://nodejs.org">nodejs.org</a> (the "LTS"
+              build) — but you won't need it today.
+            </p>
+          </div>
+
+          <!-- ============================================================
+               SECTION 3 — create & run
+               ============================================================ -->
+          <h2 id="create" data-toc="Create &amp; run the app">
+            <span class="h2-index">03</span>Create the app and run it
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            Just as <code>laravel new</code> scaffolded your backend, one command scaffolds a
+            Vue app. Run it from inside <code>builder/</code> so the new project lands next to
+            <code>backend/</code>. The general shape:
+          </p>
+
+          <div class="code">
+            <div class="code-bar">
+              <span class="code-lang">the scaffold command — run it INSIDE builder/</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code>npm create vue@latest        # the official Vue scaffolder; it asks a few questions
+# ...then...
+cd frontend                  # into the app it just made
+npm install                  # download dependencies → creates node_modules/
+npm run dev                  # start Vite; open the http://localhost:5173 it prints</code></pre>
+          </div>
+
+          <p>
+            <code>npm create vue@latest</code> asks you a short list of yes/no questions
+            (project name, TypeScript?, Router?, Pinia?, testing?…). For <strong>this</strong>
+            milestone, keep the surface small — name it <code>frontend</code> and answer
+            <strong>No</strong> to the optional add-ons. You want the smallest thing that
+            renders.
+          </p>
+
+          <div class="callout callout--note">
+            <span class="callout-tag">Why say "no" to Router and Pinia for now</span>
+            <p style="margin:0">
+              You'll hear that "real" Vue apps use <strong>Vue Router</strong> (page
+              navigation) and <strong>Pinia</strong> (shared state) — and ours will too. But
+              a professional adds a tool <em>when the problem it solves shows up</em>, not
+              before. Router earns its place when we have multiple pages (M3); Pinia when we
+              have login state to hold (M2). Adding them now would be three unfamiliar things
+              at once with nothing to do. We'll bring each in deliberately, at the milestone
+              that needs it.
+            </p>
+          </div>
+
+          <p>
+            After <code>npm run dev</code>, opening <code>http://localhost:5173</code> shows
+            Vue's <strong>starter welcome page</strong> — the frontend's equivalent of
+            Laravel's welcome page. It's a scaffold you'll gut and replace, exactly like you
+            will with <code>welcome.blade.php</code>. Seeing it means your frontend is alive.
+          </p>
+
+          <!-- ============================================================
+               SECTION 4 — two servers at once
+               ============================================================ -->
+          <h2 id="two-servers" data-toc="Two servers at once">
+            <span class="h2-index">04</span>Running both servers at once
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            This is the mental model to lock in. To build the round-trip next lesson, you'll
+            have <strong>two dev servers running simultaneously</strong>, in
+            <strong>two separate terminals</strong>:
+          </p>
+
+          <div class="flow">
+            <div class="flow-step">
+              <div class="flow-rail"><div class="flow-bullet">A</div><div class="flow-line"></div></div>
+              <div class="flow-body">
+                <div class="fb-title">Terminal 1 — the backend</div>
+                <div class="fb-text">In <code>builder/backend/</code>: <code>php artisan serve</code> → your Laravel API on <code>http://localhost:8000</code>. This terminal is now "busy" holding that server (remember M1-01).</div>
+              </div>
+            </div>
+            <div class="flow-step">
+              <div class="flow-rail"><div class="flow-bullet">B</div><div class="flow-line"></div></div>
+              <div class="flow-body">
+                <div class="fb-title">Terminal 2 — the frontend</div>
+                <div class="fb-text">In <code>builder/frontend/</code>: <code>npm run dev</code> → your Vue app on <code>http://localhost:5173</code>. A second busy terminal, a second process.</div>
+              </div>
+            </div>
+          </div>
+
+          <p>
+            They are two independent programs on two ports. Right now they don't know the
+            other exists — visiting <code>:5173</code> shows Vue, visiting <code>:8000</code>
+            shows Laravel, and neither calls the other. <strong>Next lesson</strong> we make
+            the Vue app reach across to <code>:8000</code> and fetch your route — and meet the
+            browser's cross-origin safety rule (CORS) that guards exactly that kind of call.
+            For today: just prove both can run at the same time.
+          </p>
+
+          <!-- ============================================================
+               SECTION 5 — what's a .vue file
+               ============================================================ -->
+          <h2 id="component" data-toc="What a .vue file is">
+            <span class="h2-index">05</span>A 30-second orientation: what's a <code>.vue</code> file?
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            So the scaffold isn't a black box — a quick map, no deep dive (you'll actually
+            edit one next lesson). Vue apps are built from <strong>components</strong>, and
+            each lives in a <code>.vue</code> "single-file component" that bundles three
+            labelled parts:
+          </p>
+
+          <div class="code">
+            <div class="code-bar">
+              <span class="code-lang">the shape of a .vue file — orientation only, not your task</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code>&lt;script setup&gt;   // the JavaScript: data and logic for this component
+&lt;/script&gt;
+
+&lt;template&gt;       // the HTML: what this component draws
+&lt;/template&gt;
+
+&lt;style&gt;          // the CSS: how it looks (optional)
+&lt;/style&gt;</code></pre>
+          </div>
+
+          <p>
+            The root component is <code>App.vue</code>, mounted onto the page by
+            <code>src/main.js</code>. If you've touched React: a <code>.vue</code> file is
+            one component, like a React component — except instead of JSX mixing markup into
+            JS, Vue keeps markup, logic, and style in three clearly separated blocks. That's
+            all you need to hold today; we open one for real next time.
+          </p>
+
+          <!-- ============================================================
+               SECTION 6 — check yourself
+               ============================================================ -->
+          <h2 id="check" data-toc="Check yourself">
+            <span class="h2-index">06</span>Check yourself
+          </h2>
+          <hr class="section-rule" />
+          <p>Predict each before revealing it.</p>
+
+          <div data-widget="quiz" data-kicker="Quiz" data-title="Predict the behaviour">
+            <script type="application/json">
+            {
+              "questions": [
+                {
+                  "q": "npm is to JavaScript as ___ is to PHP.",
+                  "options": [
+                    "Laravel",
+                    "Composer",
+                    "Vite"
+                  ],
+                  "answer": 1,
+                  "why": "npm is the JS package manager — the exact counterpart of Composer. package.json mirrors composer.json, package-lock.json mirrors composer.lock, and node_modules/ mirrors vendor/. Same shape, different language."
+                },
+                {
+                  "q": "After `npm install`, node_modules/ holds thousands of files. Do you commit it?",
+                  "options": [
+                    "Yes — it's part of the app, so it belongs in git.",
+                    "No — it's generated from package-lock.json and is git-ignored, just like vendor/.",
+                    "Only the files under node_modules/ that you edited."
+                  ],
+                  "answer": 1,
+                  "why": "node_modules/ is the JS twin of vendor/: generated, huge, rebuildable with `npm install`. You commit the lock file (the recipe), never the baked result. Your root .gitignore already excludes it."
+                },
+                {
+                  "q": "You have Laravel running on :8000 and you start Vue on :5173. Does the Vue page now show your backend's JSON automatically?",
+                  "options": [
+                    "Yes — running both servers connects them.",
+                    "No — they're two independent apps; nothing fetches the data until you write that code (next lesson).",
+                    "Only if they share the same port."
+                  ],
+                  "answer": 1,
+                  "why": "Two servers running is not two servers talking. They're separate processes on separate ports. The Vue app only shows backend data once you write a fetch call to :8000 — which is exactly M1-05."
+                },
+                {
+                  "q": "Which command starts the Vue dev server?",
+                  "options": [
+                    "php artisan serve",
+                    "npm run dev",
+                    "npm install"
+                  ],
+                  "answer": 1,
+                  "why": "`npm run dev` runs the 'dev' script from package.json, which launches Vite. `npm install` only downloads dependencies; `php artisan serve` is the backend's server, on the other port."
+                }
+              ]
+            }
+            </script>
+          </div>
+
+          <!-- ============================================================
+               SECTION 7 — checkpoint
+               ============================================================ -->
+          <h2 id="checkpoint" data-toc="Checkpoint">
+            <span class="h2-index">07</span>Checkpoint — get Vue running
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            Stand up the frontend and prove it runs alongside the backend. Work in
+            <code>builder/</code>. <strong>I'm describing the steps, not scripting them</strong>
+            — run each and read what it tells you.
+          </p>
+
+          <div data-widget="checklist"
+               data-progress-id="m1-04"
+               data-next="Tell Claude both servers run (and paste your frontend commit's git log line). Next concept: the round-trip — Vue fetches your route's JSON and shows it, we tame CORS, and Milestone 1 is DONE."
+               data-kicker="Checkpoint"
+               data-title="Stand up the Vue frontend">
+            <script type="application/json">
+            {
+              "items": [
+                "Verify the toolchain: <code>node --version</code> (expect v22.x) and <code>npm --version</code>. If either is missing, install Node LTS from nodejs.org, then re-check.",
+                "From <b>inside <code>builder/</code></b>, run <code>npm create vue@latest</code>. Name the project <b><code>frontend</code></b> and answer <b>No</b> to TypeScript, Router, Pinia, and the other add-ons.",
+                "<code>cd frontend</code>, then <code>npm install</code>. Watch it create <code>node_modules/</code> — the vendor/ twin.",
+                "<code>npm run dev</code>, then open the <code>http://localhost:5173</code> it prints. Confirm you see Vue's starter welcome page.",
+                "In a <b>second terminal</b>, start the backend too (<code>php artisan serve</code> in <code>builder/backend/</code>). Confirm <b>both</b> run: :5173 shows Vue, :8000 shows Laravel.",
+                "<b>Predict, then verify:</b> run <code>git status</code>. How many files under <code>frontend/node_modules/</code> does git want to add? (Predict the number first.)",
+                "Commit the scaffold the way you now know: <code>git add builder/frontend</code>, a Conventional message you write, then push. Confirm on GitHub."
+              ]
+            }
+            </script>
+          </div>
+
+          <div class="callout callout--key">
+            <span class="callout-tag">You're done when</span>
+            <p style="margin:0">
+              Vue's welcome page loads at <code>:5173</code>, both dev servers run at the same
+              time, your frontend scaffold is committed and pushed — <strong>and</strong> you
+              can explain why <code>node_modules/</code> stayed out of the commit (tie it back
+              to <code>vendor/</code>).
+            </p>
+          </div>
+
+          <div class="callout callout--warn">
+            <span class="callout-tag">If a command errors</span>
+            <p style="margin:0">
+              npm errors are wordy but usually specific. Copy the <strong>exact</strong>
+              output — especially the first red <code>npm ERR!</code> line and the command you
+              ran — and bring it to me. "It didn't work" is hard to debug; the error text is
+              easy. A port already in use, a wrong folder, or a typo'd command are the usual
+              suspects.
+            </p>
+          </div>
+
+          <p>
+            When both servers are up and your scaffold is pushed, come back and tell me — with
+            any questions the setup raised. <strong>Then</strong> the finale of Milestone 1:
+            we open <code>App.vue</code>, write a <code>fetch</code> to your
+            <code>/test-php-array</code> route, handle the browser's cross-origin rule, and
+            watch data travel from PHP → JSON → JavaScript → the screen. The full round-trip.
+          </p>
+
+          <!-- ---- page end ---- -->
+          <nav class="page-end">
+            <a class="btn btn--ghost" href="m1-03-your-first-commit.html">← M1-03</a>
+            <span class="pe-label">Next concept unlocks when this checkpoint is done</span>
+          </nav>
+
+          <footer class="site-foot">
+            <span>M1-04 · Standing Up Vue</span>
+            <span class="mono">CTF Platform — study site</span>
+          </footer>
+
+        </article>
+      </div>
+    </main>
+
+  </div>
+
+  <script src="assets/js/app.js"></script>
+  <script src="assets/js/widgets.js"></script>
+</body>
+</html>
