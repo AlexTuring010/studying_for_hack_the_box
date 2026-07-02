@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>M2-03 · Hashing &amp; Saving the User — CTF Platform Study</title>
+  <meta name="description" content="Persist the first real user: why passwords are hashed (never stored raw), how your User model auto-hashes via a cast (so hashing lives in one place), and writing the row with Eloquent create." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%235fe3a1'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body class="page-concept" data-page="m2-03">
+
+  <!-- mobile top bar -->
+  <div class="topbar">
+    <button class="icon-btn" id="nav-toggle" aria-label="Toggle navigation">☰</button>
+    <div class="brand">
+      <div class="brand-mark">⚑</div>
+      <div class="brand-text"><b>CTF Platform</b><span>study</span></div>
+    </div>
+  </div>
+  <div class="nav-overlay" id="nav-overlay"></div>
+
+  <div class="layout">
+
+    <!-- ============ SIDEBAR ============ -->
+    <aside class="sidebar">
+      <a href="index.html" class="brand" style="text-decoration:none">
+        <div class="brand-mark">⚑</div>
+        <div class="brand-text">
+          <b>CTF Platform</b>
+          <span>study companion</span>
+        </div>
+      </a>
+      <nav id="sidebar-nav"><!-- built by app.js --></nav>
+    </aside>
+
+    <!-- ============ MAIN ============ -->
+    <main class="main">
+      <div class="content">
+        <article class="article">
+
+          <!-- ---- header ---- -->
+          <header class="concept-head">
+            <div class="breadcrumb">
+              <a href="index.html">Study</a>
+              <span class="sep">/</span>
+              <span>Milestone 2 — Users Exist</span>
+              <span class="sep">/</span>
+              <span>Concept 03</span>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <span class="pill pill--ms">M2 · Users Exist</span>
+              <span class="pill pill--idx">Concept 3</span>
+            </div>
+            <h1 class="concept-title">Hashing &amp; Saving the User</h1>
+            <div class="concept-meta">
+              <span>🎯 &nbsp;Goal: your first real user row, password hashed</span>
+              <span>🔐 &nbsp;A core security practice (and the flag pattern in miniature)</span>
+              <span>🧩 &nbsp;Concept: hashing + Eloquent <code>create</code></span>
+            </div>
+          </header>
+
+          <div class="callout callout--key">
+            <span class="callout-tag">Read me first</span>
+            <p>
+              Your endpoint validates — now it's time to actually <strong>save</strong> the user.
+              Two ideas: <strong>hashing</strong> the password (so the raw password is never
+              stored) and <strong>writing the row</strong> with Eloquent. Your <code>User</code>
+              model is already set up to help — so much so that the real skill today is letting it
+              do the work and not redundantly hashing the password yourself.
+            </p>
+            <p style="margin-bottom:0">
+              You'll edit your <code>/register</code> handler. I'll teach the concepts and your
+              model's behaviour; you write the <code>create</code> call.
+            </p>
+          </div>
+
+          <div class="onpage" id="on-this-page"><!-- built by app.js --></div>
+
+          <!-- ============================================================
+               SECTION 1 — why hash
+               ============================================================ -->
+          <h2 id="why" data-toc="Why hash passwords">
+            <span class="h2-index">01</span>Why passwords are hashed, never stored
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            <strong>Rule: never store a password you could read back.</strong> If your database
+            ever leaks — and databases leak — plaintext passwords hand attackers every account at
+            once, and (because people reuse passwords) their other accounts too. So you don't store
+            the password. You store a <strong>hash</strong> of it.
+          </p>
+          <p>
+            A <strong>hash</strong> is a <em>one-way</em> function: easy to compute
+            <code>hash(password)</code>, effectively impossible to reverse
+            <code>hash → password</code>. You keep the hash. Later, at login, you hash whatever the
+            user typed and compare the two hashes — never the passwords themselves:
+          </p>
+
+          <div class="code">
+            <div class="code-bar">
+              <span class="code-lang">the one-way idea</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code>register:   store  hash("password123")   →   $2y$12$Xk9…   (a bcrypt hash)
+login:      does  hash(typed_password)  ==  the stored hash?   → yes / no
+            the real password is never written down anywhere</code></pre>
+          </div>
+
+          <div class="callout callout--note">
+            <span class="callout-tag">Salt &amp; bcrypt (the one-liner)</span>
+            <p style="margin:0">
+              Laravel hashes with <strong>bcrypt</strong> by default, which mixes in a random
+              <strong>salt</strong> — so two people with the same password get <em>different</em>
+              hashes, defeating precomputed "rainbow table" attacks. You get all of this for free;
+              you just have to <em>use</em> it and not fight it.
+            </p>
+          </div>
+
+          <div class="callout callout--key">
+            <span class="callout-tag">This is the flag pattern, early</span>
+            <p style="margin:0">
+              Bank this: it's <em>exactly</em> how we'll handle CTF <strong>flags</strong> in M4.
+              We won't store the real flag — we'll store its hash, and when a player submits a
+              guess we'll hash <em>their</em> guess and compare. Same principle: the server never
+              keeps the secret itself, only a fingerprint of it. Learn it here on passwords; reuse
+              it there on flags.
+            </p>
+          </div>
+
+          <!-- ============================================================
+               SECTION 2 — your model is already smart
+               ============================================================ -->
+          <h2 id="model" data-toc="Your model auto-hashes">
+            <span class="h2-index">02</span>Your <code>User</code> model already hashes for you
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            Open <code>app/Models/User.php</code>. Three lines shape everything you do today:
+          </p>
+
+          <div class="code">
+            <div class="code-bar">
+              <span class="code-lang">builder/backend/app/Models/User.php — the parts that matter</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code>#[Fillable(['name', 'email', 'password'])]      // which fields create() will accept
+#[Hidden(['password', 'remember_token'])]        // stripped from JSON responses
+// ...
+protected function casts(): array {
+    return [
+        'password' =&gt; 'hashed',                   // ← auto-hash the password on set
+    ];
+}</code></pre>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Line</th><th>What it does for you</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>'password' =&gt; 'hashed'</code></td>
+                  <td>When you set <code>password</code> on the model, Laravel <b>hashes it automatically</b>. You hand it the <em>plain</em> password; it stores the hash.</td>
+                </tr>
+                <tr>
+                  <td><code>#[Hidden([...])]</code></td>
+                  <td>The <code>password</code> is removed from any JSON the model produces — so returning the user <b>won't leak the password</b> (last lesson's problem, gone).</td>
+                </tr>
+                <tr>
+                  <td><code>#[Fillable([...])]</code></td>
+                  <td>The <b>mass-assignment allowlist</b>: <code>create()</code> only accepts these fields — <code>name</code>, <code>email</code>, <code>password</code>.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="callout callout--warn">
+            <span class="callout-tag">Keep hashing in exactly ONE place</span>
+            <p style="margin:0">
+              Because the cast already hashes, you should <strong>not</strong> also call
+              <code>Hash::make()</code> on the password before saving. It won't crash or lock anyone
+              out — the cast is <strong>idempotent</strong>: it first checks whether the value is
+              already hashed (<code>Hash::isHashed</code>) and, if so, leaves it untouched, so you'd
+              still end up with one valid hash and login would still work. But hashing it yourself is
+              <strong>redundant</strong>, and it leans on that already-hashed detection instead of a
+              clear rule. Keep hashing in exactly <strong>one place</strong> — the cast. Hand
+              <code>create()</code> the <em>plain</em> validated password and let the model do its
+              job. (You'll meet <code>Hash::check()</code> next lesson, for <em>login</em> — but you
+              never need <code>Hash::make()</code> here.)
+            </p>
+          </div>
+
+          <div class="callout callout--note">
+            <span class="callout-tag">Why <code>#[Fillable]</code> exists — a security allowlist</span>
+            <p style="margin:0">
+              <strong>Mass assignment</strong> means handing an array straight into
+              <code>create()</code>. Without an allowlist, a crafted request could set fields you
+              never intended — imagine someone slipping <code>"is_admin": true</code> into the JSON.
+              <code>#[Fillable]</code> says "only these columns may be set this way," so extras are
+              ignored. Another quiet security default you're already benefiting from. (Older Laravel
+              writes this as <code>protected $fillable = [...]</code> — same idea, property instead
+              of attribute.)
+            </p>
+          </div>
+
+          <!-- ============================================================
+               SECTION 3 — eloquent create
+               ============================================================ -->
+          <h2 id="create" data-toc="Writing a row with create()">
+            <span class="h2-index">03</span>Writing a row: <code>Model::create()</code>
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            Eloquent's <code>create()</code> inserts a row from an array and hands you back the new
+            model — no SQL. Here's the shape on a made-up model:
+          </p>
+
+          <div class="code">
+            <div class="code-bar">
+              <span class="code-lang">php — Eloquent create (illustrative, NOT your task)</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code>use App\Models\Post;
+
+$post = Post::create([
+    'title' =&gt; 'Hello',
+    'body'  =&gt; 'World',
+]);
+// $post is the saved row — it now has an id, created_at, etc.
+return $post;   // serialised to JSON automatically</code></pre>
+          </div>
+
+          <p>
+            Two things to notice: you <code>use</code> the model class (like any import), and the
+            returned model <em>is</em> your response — Laravel serialises it to JSON, honouring
+            <code>#[Hidden]</code>. Applied to registration: create a <code>User</code> from your
+            <strong>validated data</strong> (which is already exactly <code>name</code>,
+            <code>email</code>, <code>password</code>), and return the new user. The cast hashes the
+            password on the way in; <code>#[Hidden]</code> hides it on the way out. You write no
+            hashing code at all.
+          </p>
+
+          <!-- ============================================================
+               SECTION 4 — now unique bites
+               ============================================================ -->
+          <h2 id="unique" data-toc="Now unique:users bites">
+            <span class="h2-index">04</span>The payoff: <code>unique:users</code> finally bites
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            Last lesson you registered the same email twice with no error, and we said: that's
+            because nothing was being <em>saved</em>, so <code>unique:users</code> had an empty
+            table to check. The moment your handler actually writes a row, that changes:
+          </p>
+          <div class="flow">
+            <div class="flow-step">
+              <div class="flow-rail"><div class="flow-bullet">1</div><div class="flow-line"></div></div>
+              <div class="flow-body">
+                <div class="fb-title">First registration of an email</div>
+                <div class="fb-text">Table has no such row → validation passes → a user is created. Table now has 1 row.</div>
+              </div>
+            </div>
+            <div class="flow-step">
+              <div class="flow-rail"><div class="flow-bullet">2</div><div class="flow-line"></div></div>
+              <div class="flow-body">
+                <div class="fb-title">Second registration of the SAME email</div>
+                <div class="fb-text"><code>unique:users</code> now finds the existing row → validation fails → <code>422</code>, "email already taken". The puzzle from last lesson, solved.</div>
+              </div>
+            </div>
+          </div>
+          <p style="margin-bottom:0">
+            So saving the user makes your validation come fully alive. You'll verify exactly this in
+            the checkpoint.
+          </p>
+
+          <!-- ============================================================
+               SECTION 5 — check yourself
+               ============================================================ -->
+          <h2 id="check" data-toc="Check yourself">
+            <span class="h2-index">05</span>Check yourself
+          </h2>
+          <hr class="section-rule" />
+          <p>Predict each before revealing it.</p>
+
+          <div data-widget="quiz" data-kicker="Quiz" data-title="Predict the behaviour">
+            <script type="application/json">
+            {
+              "questions": [
+                {
+                  "q": "Why store a hash of the password instead of the password itself?",
+                  "options": [
+                    "Hashes take less disk space.",
+                    "Hashing is one-way — if the database leaks, the real passwords aren't exposed; you only ever compare hashes.",
+                    "So the password fits in the database column."
+                  ],
+                  "answer": 1,
+                  "why": "A hash can't be reversed to the password, so a leaked database doesn't hand over anyone's actual password. At login you hash the attempt and compare hashes — the real secret is never stored. Same principle we'll use for flags in M4."
+                },
+                {
+                  "q": "Your User model casts `password => hashed`. If you ALSO call Hash::make() on the password before create(), what happens?",
+                  "options": [
+                    "It's fine and recommended — hashing twice is extra safe.",
+                    "Nothing breaks, but it's redundant: the cast sees the value is already hashed and stores it unchanged, so you still get one valid hash — you just did the cast's job for it.",
+                    "The password is double-hashed and login can never match."
+                  ],
+                  "answer": 1,
+                  "why": "The hashed cast is idempotent — before hashing it calls Hash::isHashed(), and an already-hashed bcrypt string is returned unchanged. So there's no second hash and login still works; calling Hash::make() yourself just isn't necessary. Keep hashing in one place: let the cast do it, and pass create() the plain password."
+                },
+                {
+                  "q": "What does `#[Hidden(['password'])]` on the model do?",
+                  "options": [
+                    "Prevents the password column from being saved.",
+                    "Removes password from the model's JSON output, so returning the user doesn't leak it.",
+                    "Encrypts the password."
+                  ],
+                  "answer": 1,
+                  "why": "#[Hidden] controls serialization: those fields are stripped when the model becomes JSON. So you can safely return the whole user — the password won't appear in the response."
+                },
+                {
+                  "q": "What does `#[Fillable(['name','email','password'])]` control?",
+                  "options": [
+                    "The columns shown in the database GUI.",
+                    "The mass-assignment allowlist — which fields create() will accept from an input array.",
+                    "The order of columns in the table."
+                  ],
+                  "answer": 1,
+                  "why": "It's a security allowlist: create()/fill() only set the listed fields, so a request can't sneak in extra columns (like is_admin). Fields not listed are silently ignored."
+                }
+              ]
+            }
+            </script>
+          </div>
+
+          <!-- ============================================================
+               SECTION 6 — checkpoint
+               ============================================================ -->
+          <h2 id="checkpoint" data-toc="Checkpoint">
+            <span class="h2-index">06</span>Checkpoint — save your first user
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            Turn your validating endpoint into one that actually creates a user. Edit your
+            <code>/register</code> handler in <code>routes/api.php</code>. <strong>You write the
+            <code>create</code> call</strong> — §2 and §3 are your guide.
+          </p>
+
+          <div data-widget="checklist"
+               data-progress-id="m2-03"
+               data-next="Tell Claude a user row was created with a hashed password (and the duplicate got 422). Next: LOGIN — verify a password with Hash::check and issue an auth token (Sanctum) so the user stays logged in."
+               data-kicker="Checkpoint"
+               data-title="Persist a hashed user">
+            <script type="application/json">
+            {
+              "items": [
+                "Import the User model at the TOP of <code>routes/api.php</code> (<code>use App\\Models\\User;</code>), grouped with your other <code>use</code> lines.",
+                "In <code>/register</code>, replace the echo: instead of returning <code>$validated</code>, create a user from it with <code>User::create(...)</code> and return the new user. <b>Do NOT call Hash::make()</b> — the cast hashes for you.",
+                "Test a valid registration → 2xx, and confirm the response contains the user but <b>NOT</b> the password (thanks to <code>#[Hidden]</code>).",
+                "Verify persistence: <code>php artisan tinker</code> → <code>\\App\\Models\\User::count()</code> is now ≥ 1.",
+                "Confirm it's hashed: <code>\\App\\Models\\User::first()->password</code> → a <code>$2y$…</code> bcrypt hash, <b>not</b> <code>password123</code>.",
+                "Register the SAME email again → now you get a <code>422</code> (<code>unique:users</code> bites). The last-lesson puzzle, solved.",
+                "Commit it (e.g. <code>feat(backend): persist registered users with hashed password</code>) and push."
+              ]
+            }
+            </script>
+          </div>
+
+          <div class="callout callout--key">
+            <span class="callout-tag">You're done when</span>
+            <p style="margin:0">
+              Registering creates a real row whose <code>password</code> is a bcrypt hash (not
+              plaintext), the API response omits the password, and a duplicate email is rejected with
+              a <code>422</code> — <strong>and</strong> you can explain why we hash and why you must
+              <em>not</em> hash it yourself given the cast.
+            </p>
+          </div>
+
+          <div class="callout callout--warn">
+            <span class="callout-tag">If something's off</span>
+            <p style="margin:0">
+              <b>Password saved as plaintext?</b> The <code>casts()</code> entry is missing or the
+              field name isn't <code>password</code>. <b>Class 'App\\Models\\User' not found?</b> Add
+              the <code>use App\\Models\\User;</code> import. <b>Mass-assignment error / fields
+              ignored?</b> Check <code>#[Fillable]</code> lists the fields you're passing. Paste me
+              the error and what <code>tinker</code> shows.
+            </p>
+          </div>
+
+          <p>
+            When your first user is in the table with a hashed password, come back and tell me.
+            <strong>Then</strong> the other half of auth: <strong>login</strong> — taking an email
+            and password, verifying them with <code>Hash::check()</code> (the counterpart to the
+            hashing you just did), and issuing an <strong>auth token</strong> (Laravel Sanctum) so
+            the user can stay logged in across requests.
+          </p>
+
+          <!-- ---- page end ---- -->
+          <nav class="page-end">
+            <a class="btn btn--ghost" href="m2-02-receiving-and-validating-a-post.html">← M2-02</a>
+            <span class="pe-label">Next concept unlocks when this checkpoint is done</span>
+          </nav>
+
+          <footer class="site-foot">
+            <span>M2-03 · Hashing &amp; Saving the User</span>
+            <span class="mono">CTF Platform — study site</span>
+          </footer>
+
+        </article>
+      </div>
+    </main>
+
+  </div>
+
+  <script src="assets/js/app.js"></script>
+  <script src="assets/js/widgets.js"></script>
+</body>
+</html>

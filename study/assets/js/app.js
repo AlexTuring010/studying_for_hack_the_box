@@ -118,6 +118,13 @@
           sub: "GET vs POST, the Request object, server-side validation",
           file: "m2-02-receiving-and-validating-a-post.html",
           state: "available"
+        },
+        {
+          code: "M2-03", id: "m2-03",
+          title: "Hashing & Saving the User",
+          sub: "Password hashing, the model's hashed cast, Eloquent create",
+          file: "m2-03-hashing-and-saving-the-user.html",
+          state: "available"
         }
       ]
     },
