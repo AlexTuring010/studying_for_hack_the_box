@@ -12,6 +12,7 @@ Route::get('/test-php-array', function () {
 });
 
 use Illuminate\Http\Request;
+use App\Models\User;
 
 Route::post('/register', function (Request $request) {
     $validated = $request->validate([
@@ -19,8 +20,9 @@ Route::post('/register', function (Request $request) {
         'email' => 'required|string|email|unique:users',
         'password' => 'required|string|min:8|confirmed',
     ]);
+    $user = User::create($validated);
     return [
         'message' => 'User registered successfully',
-        'user' => $validated,
+        'user' => $user,
     ];
 });
