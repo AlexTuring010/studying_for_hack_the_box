@@ -84,6 +84,13 @@
           sub: "Promises as futures, async/await, the fetch API, pulling your JSON live",
           file: "m1-06-async-javascript-and-fetch.html",
           state: "available"
+        },
+        {
+          code: "M1-07", id: "m1-07",
+          title: "CORS & the /api Route",
+          sub: "Same-Origin Policy, CORS as opt-in, moving the endpoint under /api",
+          file: "m1-07-cors-and-the-api-route.html",
+          state: "available"
         }
       ]
     },

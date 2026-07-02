@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>M1-07 · CORS &amp; the /api Route — CTF Platform Study</title>
+  <meta name="description" content="Why the browser blocked your 200-OK response, the Same-Origin Policy, CORS as the server's opt-in, and the professional fix: move your data endpoint under /api and allow your frontend origin." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%235fe3a1'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body class="page-concept" data-page="m1-07">
+
+  <!-- mobile top bar -->
+  <div class="topbar">
+    <button class="icon-btn" id="nav-toggle" aria-label="Toggle navigation">☰</button>
+    <div class="brand">
+      <div class="brand-mark">⚑</div>
+      <div class="brand-text"><b>CTF Platform</b><span>study</span></div>
+    </div>
+  </div>
+  <div class="nav-overlay" id="nav-overlay"></div>
+
+  <div class="layout">
+
+    <!-- ============ SIDEBAR ============ -->
+    <aside class="sidebar">
+      <a href="index.html" class="brand" style="text-decoration:none">
+        <div class="brand-mark">⚑</div>
+        <div class="brand-text">
+          <b>CTF Platform</b>
+          <span>study companion</span>
+        </div>
+      </a>
+      <nav id="sidebar-nav"><!-- built by app.js --></nav>
+    </aside>
+
+    <!-- ============ MAIN ============ -->
+    <main class="main">
+      <div class="content">
+        <article class="article">
+
+          <!-- ---- header ---- -->
+          <header class="concept-head">
+            <div class="breadcrumb">
+              <a href="index.html">Study</a>
+              <span class="sep">/</span>
+              <span>Milestone 1 — Plumbing</span>
+              <span class="sep">/</span>
+              <span>Concept 07</span>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <span class="pill pill--ms">M1 · Plumbing</span>
+              <span class="pill pill--idx">Concept 7</span>
+            </div>
+            <h1 class="concept-title">CORS &amp; the <code>/api</code> Route</h1>
+            <div class="concept-meta">
+              <span>🎯 &nbsp;Goal: the console fetch comes back GREEN with your JSON</span>
+              <span>🔐 &nbsp;A core web-security mechanism — right up HTB's alley</span>
+              <span>🧩 &nbsp;Concept: the Same-Origin Policy &amp; CORS opt-in</span>
+            </div>
+          </header>
+
+          <div class="callout callout--key">
+            <span class="callout-tag">Read me first</span>
+            <p>
+              Your evidence from last checkpoint is the whole lesson in one screenshot: Laravel
+              answered <strong>200 OK</strong> with <code>Content-Type: application/json</code>
+              — a <em>perfect</em> response — yet the browser console said
+              <em>"blocked by CORS policy."</em> The server said yes; the browser said no. This
+              lesson explains that gap and closes it, the professional way.
+            </p>
+            <p style="margin-bottom:0">
+              I verified every command below against <em>your</em> installed Laravel 13, so
+              they're exact for your version. By the end, that same
+              <code>fetch</code> returns your <code>{ name, age, email }</code> — the last
+              green light before we put it on the page.
+            </p>
+          </div>
+
+          <div class="onpage" id="on-this-page"><!-- built by app.js --></div>
+
+          <!-- ============================================================
+               SECTION 1 — who blocked it
+               ============================================================ -->
+          <h2 id="who" data-toc="Who actually blocked it">
+            <span class="h2-index">01</span>The server said yes — the <em>browser</em> said no
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            Read your own two logs side by side. They look contradictory until you realise
+            <strong>two different programs</strong> are talking:
+          </p>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Where you looked</th><th>What it reported</th><th>Meaning</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><b>Network tab</b> (the server's reply)</td>
+                  <td><code>200 OK</code>, <code>application/json</code></td>
+                  <td>Laravel ran your route and sent the JSON. Nothing wrong server-side.</td>
+                </tr>
+                <tr>
+                  <td><b>Console</b> (what JS is allowed to read)</td>
+                  <td><code>blocked by CORS policy</code>, <code>Failed to fetch</code></td>
+                  <td>The browser refused to hand that response to your JavaScript.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <p>
+            The request left, arrived, and was answered. Then the <strong>browser</strong> —
+            sitting between the server and your JS — inspected the reply, saw no permission
+            slip for the <code>:5173</code> origin, and <em>withheld the body from your code</em>.
+            The data physically came back; the browser just wouldn't let your script see it.
+            <strong>The browser is the gatekeeper, not Laravel.</strong>
+          </p>
+
+          <!-- ============================================================
+               SECTION 2 — the same-origin policy
+               ============================================================ -->
+          <h2 id="sop" data-toc="The Same-Origin Policy">
+            <span class="h2-index">02</span>Why: the Same-Origin Policy
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            Browsers enforce a rule called the <strong>Same-Origin Policy</strong>: by default,
+            JavaScript may only <em>read</em> responses from its <strong>own origin</strong>. An
+            "origin" is the triple <strong>scheme + host + port</strong>:
+          </p>
+
+          <div class="code">
+            <div class="code-bar">
+              <span class="code-lang">two origins — different ports = different origins</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code>http://localhost:5173     &lt;-- your Vue app  (the origin of the JS making the call)
+http://localhost:8000     &lt;-- your Laravel API
+     scheme   host  port
+</code></pre>
+          </div>
+
+          <p>
+            Same scheme, same host — but <code>5173 ≠ 8000</code>, so to the browser these are
+            <strong>different origins</strong>, and a call from one to the other is
+            <em>cross-origin</em>. Blocked by default.
+          </p>
+
+          <div class="callout callout--key">
+            <span class="callout-tag">Why this rule exists (your HTB security angle)</span>
+            <p style="margin:0">
+              Imagine you're logged into <code>bank.com</code> in one tab. You open
+              <code>evil.com</code> in another. Without the Same-Origin Policy, JavaScript on
+              <code>evil.com</code> could quietly <code>fetch('https://bank.com/account')</code>
+              — your browser would attach your <code>bank.com</code> cookies automatically — and
+              <em>read your balance, or move money</em>. The SOP is the wall that stops one site
+              from reading another site's responses using your credentials. It's a foundational
+              browser defense — the kind of mechanism you'll be probing from the other side on
+              Hack The Box.
+            </p>
+          </div>
+
+          <!-- ============================================================
+               SECTION 3 — CORS is the opt-in
+               ============================================================ -->
+          <h2 id="cors" data-toc="CORS = the server's opt-in">
+            <span class="h2-index">03</span>CORS is how the server says "this origin is allowed"
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            But legitimate cross-origin calls are everywhere — including <em>ours</em> (our own
+            frontend calling our own API). So there's a sanctioned way to permit them:
+            <strong>CORS — Cross-Origin Resource Sharing</strong>. The <em>server</em> adds a
+            response header naming who's allowed to read it:
+          </p>
+
+          <div class="code">
+            <div class="code-bar">
+              <span class="code-lang">the permission slip — a response header the server adds</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code>Access-Control-Allow-Origin: http://localhost:5173</code></pre>
+          </div>
+
+          <p>
+            When the browser sees that header and it matches the caller's origin, it releases
+            the response to the JS. Your blocked response simply <em>didn't carry this header</em>
+            (the console even told you: <em>"No 'Access-Control-Allow-Origin' header is
+            present"</em>). CORS is strictly the <strong>target server's decision</strong> — the
+            browser just enforces it. Note the direction: CORS <em>loosens</em> the Same-Origin
+            Policy on purpose; it's a permission system, not a lock.
+          </p>
+
+          <div class="callout callout--note">
+            <span class="callout-tag">Bank for later: "preflight"</span>
+            <p style="margin:0">
+              Your call was a plain <code>GET</code> with no custom headers — a "simple request"
+              — so the browser just sent it and checked the reply. For fancier requests (a
+              <code>POST</code> with a JSON content-type, custom headers, etc.) the browser first
+              sends a tiny <code>OPTIONS</code> "preflight" asking permission <em>before</em> the
+              real request. You'll meet preflight when we start POSTing login data in M2. Not
+              today.
+            </p>
+          </div>
+
+          <!-- ============================================================
+               SECTION 4 — why yours specifically was blocked
+               ============================================================ -->
+          <h2 id="whyblocked" data-toc="Why your route specifically">
+            <span class="h2-index">04</span>Why <em>your</em> route was blocked (and the clean fix)
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            Here's the twist I verified in your <code>vendor/</code>: Laravel <strong>already
+            ships CORS handling and it's switched on</strong> (a <code>HandleCors</code>
+            middleware runs on every request). So why no header? Because its default config only
+            applies CORS to one set of paths:
+          </p>
+
+          <div class="code">
+            <div class="code-bar">
+              <span class="code-lang">Laravel's DEFAULT cors config (what your app uses right now)</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code>'paths' =&gt; ['api/*', 'sanctum/csrf-cookie'],   // CORS only applied to these
+'allowed_origins' =&gt; ['*'],                    // ...and there, ANY origin is allowed
+</code></pre>
+          </div>
+
+          <p>
+            Your route is <code>/test-php-array</code> — a <strong>web</strong> route, which does
+            <em>not</em> match <code>api/*</code>. So <code>HandleCors</code> looked at it, saw it
+            wasn't a CORS-managed path, and added no headers. The fix follows directly: put your
+            data endpoint <strong>where the API belongs — under <code>/api</code></strong>. The
+            moment it matches <code>api/*</code>, the default config (<code>allowed_origins:
+            ['*']</code>) applies and the browser is satisfied.
+          </p>
+
+          <div class="callout callout--key">
+            <span class="callout-tag">Bonus you already spotted: the session cookies vanish</span>
+            <p style="margin:0">
+              Remember those <code>Set-Cookie: XSRF-TOKEN</code> / <code>laravel-session</code>
+              headers on your response? Those come from the <strong>web</strong> middleware group
+              (it manages sessions). The <strong>api</strong> group is <em>stateless</em> — no
+              session middleware — so once your route lives under <code>/api</code>, it stops
+              emitting those cookies. That's exactly what you want for an API: every request
+              stands alone. Moving to <code>/api</code> fixes CORS <em>and</em> makes the endpoint
+              behave like a proper API.
+            </p>
+          </div>
+
+          <!-- ============================================================
+               SECTION 5 — the fix
+               ============================================================ -->
+          <h2 id="fix" data-toc="The fix, step by step">
+            <span class="h2-index">05</span>The fix, in two beats
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            <strong>Beat 1 — move the route under <code>/api</code></strong> (this alone turns
+            the light green). <strong>Beat 2 — tighten who's allowed</strong> (the professional,
+            security-minded follow-up). I'll describe each; <em>you</em> write the edits.
+          </p>
+
+          <h3 style="margin:22px 0 6px">Beat 1 — give your app API routing</h3>
+          <p>
+            Right now you have no <code>routes/api.php</code>. Create one, then tell Laravel about
+            it. Your <code>bootstrap/app.php</code> already registers the web routes — you're
+            adding a sibling for the API:
+          </p>
+          <div class="code">
+            <div class="code-bar">
+              <span class="code-lang">builder/backend/bootstrap/app.php — you add ONE line</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code>-&gt;withRouting(
+    web: __DIR__.'/../routes/web.php',
+    // ← add an  api:  line here, mirroring the web: one above,
+    //   pointing at your new routes/api.php
+    commands: __DIR__.'/../routes/console.php',
+    health: '/up',
+)</code></pre>
+          </div>
+          <p>
+            Then <strong>move your existing <code>/test-php-array</code> handler</strong> out of
+            <code>web.php</code> and into <code>api.php</code> (same handler you already wrote —
+            just relocate it). The <code>api</code> group auto-prefixes routes with
+            <code>/api</code>, so its real URL becomes <code>/api/test-php-array</code>. Confirm
+            with:
+          </p>
+          <div class="code">
+            <div class="code-bar">
+              <span class="code-lang">verify the route exists where you expect</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code>php artisan route:list --path=api
+# you should see:  GET|HEAD   api/test-php-array</code></pre>
+          </div>
+
+          <div class="callout callout--warn">
+            <span class="callout-tag">Don't run <code>php artisan install:api</code> for this</span>
+            <p style="margin:0">
+              It's the "official" way to add API routing, but it also installs Laravel
+              <strong>Sanctum</strong>, publishes an auth migration, and interactively asks to run
+              migrations — that's login-token scaffolding for <strong>M2</strong>, not now. Adding
+              the one <code>api:</code> line yourself is cleaner and keeps today focused.
+            </p>
+          </div>
+
+          <p>
+            Now update your console <code>fetch</code> to the new URL —
+            <code>http://localhost:8000/api/test-php-array</code> — and re-run it. It should come
+            back <strong>green</strong>: your JSON, no CORS error, no <code>Set-Cookie</code>.
+            That's the round-trip's data path, open at last.
+          </p>
+
+          <h3 style="margin:22px 0 6px">Beat 2 — stop allowing <em>every</em> origin</h3>
+          <p>
+            It works now because the default <code>allowed_origins</code> is <code>['*']</code> —
+            <em>any</em> website may call your API from a browser. Fine in dev, sloppy for a real
+            product. Lock it to your frontend. First publish the config so you can edit it:
+          </p>
+          <div class="code">
+            <div class="code-bar">
+              <span class="code-lang">publish the CORS config into config/cors.php</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code>php artisan config:publish cors</code></pre>
+          </div>
+          <p>
+            Then in the new <code>config/cors.php</code>, change <code>allowed_origins</code> from
+            the wildcard to your <strong>exact</strong> origin:
+          </p>
+          <div class="code">
+            <div class="code-bar">
+              <span class="code-lang">config/cors.php — one value changes</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code>'allowed_origins' =&gt; ['http://localhost:5173'],   // was ['*']</code></pre>
+          </div>
+
+          <div class="callout callout--warn">
+            <span class="callout-tag">Three gotchas that waste an afternoon</span>
+            <p style="margin:0">
+              <b>1. It's an origin, not a URL.</b> <code>http://localhost:5173</code> exactly — no
+              trailing slash, exact port. A mismatch fails silently (still blocked).<br />
+              <b>2. If edits seem ignored,</b> run <code>php artisan optimize:clear</code>. You
+              don't need to restart <code>artisan serve</code> (it reboots each request), but a
+              stale <em>config/route cache</em> would override your changes.<br />
+              <b>3. Don't reach for credentials.</b> Leave <code>supports_credentials</code> as
+              <code>false</code> and keep the fetch a plain GET. Turning on credentials with
+              <code>allowed_origins: ['*']</code> is actually forbidden by the CORS spec — that's a
+              cookie-auth topic for M2, with a specific origin.
+            </p>
+          </div>
+
+          <div class="callout callout--note">
+            <span class="callout-tag">Why not the "easy" Vite proxy?</span>
+            <p style="margin:0">
+              You may read that you can dodge CORS with a Vite dev-server proxy. It works — but
+              only in <code>npm run dev</code>; it evaporates on <code>npm run build</code>, and
+              in production your Vue app and API really <em>are</em> separate origins. Configuring
+              CORS properly is the skill that survives to deployment (M5). We do the real thing.
+            </p>
+          </div>
+
+          <!-- ============================================================
+               SECTION 6 — check yourself
+               ============================================================ -->
+          <h2 id="check" data-toc="Check yourself">
+            <span class="h2-index">06</span>Check yourself
+          </h2>
+          <hr class="section-rule" />
+          <p>Predict each before revealing it.</p>
+
+          <div data-widget="quiz" data-kicker="Quiz" data-title="Predict the behaviour">
+            <script type="application/json">
+            {
+              "questions": [
+                {
+                  "q": "The Network tab showed 200 OK with your JSON, but the console showed a CORS error. Who blocked your JavaScript from reading the data?",
+                  "options": [
+                    "Laravel refused the request.",
+                    "The browser — it withheld the response because no Access-Control-Allow-Origin header was present.",
+                    "The Vue dev server dropped it."
+                  ],
+                  "answer": 1,
+                  "why": "The request reached Laravel and returned 200. The browser is the enforcer: it inspected the reply, found no permission header for the :5173 origin, and refused to expose the body to your JS. Server was fine; browser blocked."
+                },
+                {
+                  "q": "What counts as the same 'origin' as your Vue app at http://localhost:5173?",
+                  "options": [
+                    "http://localhost:8000 — same host, so same origin.",
+                    "https://localhost:5173 — same host and port.",
+                    "Only http://localhost:5173 — origin is scheme + host + PORT, all three must match."
+                  ],
+                  "answer": 2,
+                  "why": "An origin is scheme + host + port. :8000 differs by port; https:// differs by scheme. Only the exact same triple is same-origin — which is why calling the API on :8000 is cross-origin."
+                },
+                {
+                  "q": "Laravel's CORS was already ON. Why did /test-php-array get no CORS header, while an /api/* route would?",
+                  "options": [
+                    "The default cors config only applies to paths matching api/* (and sanctum/csrf-cookie); a web route isn't covered.",
+                    "web routes can never send CORS headers.",
+                    "You had to install a CORS package first."
+                  ],
+                  "answer": 0,
+                  "why": "HandleCors runs globally, but only adds headers for paths in the config's 'paths' list — api/* by default. A web route doesn't match, so no headers. Move the route under /api and the default config (allowed_origins '*') covers it."
+                },
+                {
+                  "q": "After you move the handler into routes/api.php, what URL must the frontend fetch?",
+                  "options": [
+                    "http://localhost:8000/test-php-array — same as before.",
+                    "http://localhost:8000/api/test-php-array — the api group prefixes routes with /api.",
+                    "http://localhost:5173/api/test-php-array — it moves to the frontend."
+                  ],
+                  "answer": 1,
+                  "why": "The api route group auto-prefixes /api, so the endpoint is now /api/test-php-array on the backend (:8000). Forgetting the prefix gives a 404 — which looks like a new bug but is just the wrong path."
+                }
+              ]
+            }
+            </script>
+          </div>
+
+          <!-- ============================================================
+               SECTION 7 — checkpoint
+               ============================================================ -->
+          <h2 id="checkpoint" data-toc="Checkpoint">
+            <span class="h2-index">07</span>Checkpoint — turn the light green
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            Do the fix in <code>builder/backend/</code>, then re-run the exact console fetch from
+            last lesson. <strong>You write the edits — I've told you what and why.</strong>
+          </p>
+
+          <div data-widget="checklist"
+               data-progress-id="m1-07"
+               data-next="Tell Claude the fetch came back green (paste the JSON). NEXT — the finale: wire this fetch into App.vue with ref() + onMounted(), render it on the page, and Milestone 1 is DONE. That's your applyable MVP foundation."
+               data-kicker="Checkpoint"
+               data-title="Fix CORS the professional way">
+            <script type="application/json">
+            {
+              "items": [
+                "Create <code>routes/api.php</code>, and in <code>bootstrap/app.php</code> add an <code>api:</code> line to <code>withRouting()</code>, mirroring the existing <code>web:</code> line. (Do NOT run <code>php artisan install:api</code>.)",
+                "<b>Move</b> your existing <code>GET /test-php-array</code> handler from <code>web.php</code> into <code>api.php</code> (same code, relocated). Verify with <code>php artisan route:list --path=api</code> — you should see <code>api/test-php-array</code>.",
+                "In the browser console, re-run the fetch against the NEW url: <code>await fetch('http://localhost:8000/api/test-php-array')</code> then <code>.json()</code>. Confirm it's <b>green</b> — your JSON, no CORS error.",
+                "Confirm the bonus: check the Network tab — the <code>Set-Cookie</code> headers are <b>gone</b> now (the api group is stateless).",
+                "<b>Tighten it (security):</b> run <code>php artisan config:publish cors</code>, then set <code>allowed_origins</code> from <code>['*']</code> to your exact origin <code>['http://localhost:5173']</code>. Run <code>php artisan optimize:clear</code>.",
+                "Re-run the fetch once more — it should <b>still</b> work. You've now allowed only your own frontend, not the whole internet."
+              ]
+            }
+            </script>
+          </div>
+
+          <div class="callout callout--key">
+            <span class="callout-tag">You're done when</span>
+            <p style="margin:0">
+              The console <code>fetch</code> to <code>/api/test-php-array</code> returns your
+              <code>{ name, age, email }</code> with no CORS error, <code>allowed_origins</code> is
+              locked to your frontend, <strong>and</strong> you can explain — in your words — who
+              blocked the original request, and why moving to <code>/api</code> fixed it.
+            </p>
+          </div>
+
+          <div class="callout callout--warn">
+            <span class="callout-tag">If it's still not green</span>
+            <p style="margin:0">
+              <b>404?</b> You probably fetched the old URL — add the <code>/api</code> prefix, and
+              check <code>route:list</code>. <b>Still CORS-blocked?</b> Run
+              <code>php artisan optimize:clear</code> (stale cache), and re-check your
+              <code>allowed_origins</code> value is the exact origin, no trailing slash. Paste me
+              the console text and your <code>route:list</code> output and we'll pin it down.
+            </p>
+          </div>
+
+          <p>
+            When it's green, come back with the JSON you got. <strong>Then the finale:</strong> we
+            open <code>App.vue</code>, hold the fetched data in a reactive <code>ref()</code>, kick
+            the fetch off with <code>onMounted()</code>, and render it in the template — data
+            travelling PHP → JSON → JavaScript → the screen. That completes Milestone 1: a real,
+            end-to-end round-trip, and the foundation of your applyable MVP.
+          </p>
+
+          <!-- ---- page end ---- -->
+          <nav class="page-end">
+            <a class="btn btn--ghost" href="m1-06-async-javascript-and-fetch.html">← M1-06</a>
+            <span class="pe-label">Next concept unlocks when this checkpoint is done</span>
+          </nav>
+
+          <footer class="site-foot">
+            <span>M1-07 · CORS &amp; the /api Route</span>
+            <span class="mono">CTF Platform — study site</span>
+          </footer>
+
+        </article>
+      </div>
+    </main>
+
+  </div>
+
+  <script src="assets/js/app.js"></script>
+  <script src="assets/js/widgets.js"></script>
+</body>
+</html>
