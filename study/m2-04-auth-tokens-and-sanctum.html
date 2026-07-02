@@ -214,13 +214,18 @@
 
           <div class="code">
             <div class="code-bar">
-              <span class="code-lang">2 — create its table (Sanctum ships the migration; Laravel loads it)</span>
+              <span class="code-lang">2 — publish Sanctum's migration, then run it</span>
               <button class="copy-btn">Copy</button>
             </div>
-<pre><code>php artisan migrate
+<pre><code>php artisan vendor:publish --provider "Laravel\Sanctum\SanctumServiceProvider"
+php artisan migrate
 # then confirm it landed:
 php artisan migrate:status        # look for ...create_personal_access_tokens_table  → Ran</code></pre>
           </div>
+          <p style="margin:10px 0 0;color:var(--text-faint);font-size:14px">
+            (Sanctum 4.x does <em>not</em> auto-load its migration, so you publish it first — that's
+            why a bare <code>php artisan migrate</code> would report "Nothing to migrate.")
+          </p>
 
           <p>
             <strong>Step 3 — give your <code>User</code> the token power.</strong> In
@@ -346,7 +351,7 @@ $u->createToken('test')->plainTextToken;     // → "1|abc123…"  (your first t
             {
               "items": [
                 "Run <code>composer require laravel/sanctum</code> (needs internet; no version pin — composer picks the Laravel-13-compatible release). Do <b>NOT</b> run <code>php artisan install:api</code>, and never <code>--force</code>.",
-                "Run <code>php artisan migrate</code>, then <code>php artisan migrate:status</code> — confirm <code>...create_personal_access_tokens_table</code> shows <b>Ran</b>.",
+                "Publish Sanctum's migration (the <code>vendor:publish --provider</code> command in Step 2 — Sanctum 4.x doesn't auto-load it), then <code>php artisan migrate</code>, and confirm <code>php artisan migrate:status</code> shows <code>...create_personal_access_tokens_table</code> as <b>Ran</b>.",
                 "In <code>app/Models/User.php</code>: import <code>Laravel\\Sanctum\\HasApiTokens</code> and add <code>HasApiTokens</code> to the existing <code>use HasFactory, Notifiable;</code> trait line.",
                 "Mint a token in <code>php artisan tinker</code>: <code>\\App\\Models\\User::first()->createToken('test')->plainTextToken</code> → you get an <code>id|random</code> string.",
                 "Confirm it persisted &amp; is hashed: <code>php artisan db:table personal_access_tokens</code> (a row exists) — the stored <code>token</code> is a hash, not the string you saw.",
@@ -369,12 +374,11 @@ $u->createToken('test')->plainTextToken;     // → "1|abc123…"  (your first t
             <span class="callout-tag">If a step misbehaves</span>
             <p style="margin:0">
               <b>composer fails?</b> Check your internet and that <code>composer</code> is on your
-              PATH. <b><code>migrate:status</code> doesn't list the token migration?</b> Publish it
-              first, then migrate again: <code>php artisan vendor:publish --provider
-              'Laravel\Sanctum\SanctumServiceProvider'</code> (single backslashes, single-quoted),
-              then <code>php artisan migrate</code>. <b><code>createToken() not found</code> in
-              tinker?</b> The <code>HasApiTokens</code> trait/import is missing from
-              <code>User.php</code>. Paste me the exact error.
+              PATH. <b><code>migrate</code> says "Nothing to migrate"?</b> You skipped Step 2's
+              publish — Sanctum 4.x doesn't auto-load its migration, so run the
+              <code>vendor:publish</code> command first, then <code>php artisan migrate</code>.
+              <b><code>createToken() not found</code> in tinker?</b> The <code>HasApiTokens</code>
+              trait/import is missing from <code>User.php</code>. Paste me the exact error.
             </p>
           </div>
 
