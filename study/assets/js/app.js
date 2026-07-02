@@ -56,6 +56,13 @@
           sub: "The two doors into the app, routing, and your first PHP",
           file: "m1-02-your-first-route.html",
           state: "available"
+        },
+        {
+          code: "M1-03", id: "m1-03",
+          title: "Your First Commit",
+          sub: "The staging model, keeping secrets out of git, a scoped commit",
+          file: "m1-03-your-first-commit.html",
+          state: "available"
         }
       ]
     },

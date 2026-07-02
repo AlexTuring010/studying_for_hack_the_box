@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>M1-03 · Your First Commit — CTF Platform Study</title>
+  <meta name="description" content="Save your first real product code the professional way — one repo, the staging model, why secrets and vendored code never get committed, and a clean scoped commit." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%235fe3a1'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body class="page-concept" data-page="m1-03">
+
+  <!-- mobile top bar -->
+  <div class="topbar">
+    <button class="icon-btn" id="nav-toggle" aria-label="Toggle navigation">☰</button>
+    <div class="brand">
+      <div class="brand-mark">⚑</div>
+      <div class="brand-text"><b>CTF Platform</b><span>study</span></div>
+    </div>
+  </div>
+  <div class="nav-overlay" id="nav-overlay"></div>
+
+  <div class="layout">
+
+    <!-- ============ SIDEBAR ============ -->
+    <aside class="sidebar">
+      <a href="index.html" class="brand" style="text-decoration:none">
+        <div class="brand-mark">⚑</div>
+        <div class="brand-text">
+          <b>CTF Platform</b>
+          <span>study companion</span>
+        </div>
+      </a>
+      <nav id="sidebar-nav"><!-- built by app.js --></nav>
+    </aside>
+
+    <!-- ============ MAIN ============ -->
+    <main class="main">
+      <div class="content">
+        <article class="article">
+
+          <!-- ---- header ---- -->
+          <header class="concept-head">
+            <div class="breadcrumb">
+              <a href="index.html">Study</a>
+              <span class="sep">/</span>
+              <span>Milestone 1 — Plumbing</span>
+              <span class="sep">/</span>
+              <span>Concept 03</span>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <span class="pill pill--ms">M1 · Plumbing</span>
+              <span class="pill pill--idx">Concept 3</span>
+            </div>
+            <h1 class="concept-title">Your First Commit</h1>
+            <div class="concept-meta">
+              <span>🎯 &nbsp;Goal: your routes become a saved point in history</span>
+              <span>🔐 &nbsp;Practice: keep secrets out of git, forever</span>
+              <span>🧩 &nbsp;Concept: the staging model + a scoped commit</span>
+            </div>
+          </header>
+
+          <div class="callout callout--key">
+            <span class="callout-tag">Read me first</span>
+            <p>
+              Last lesson you wrote <em>real product code</em> — two routes that are
+              genuinely yours. Right now that code exists only as edited bytes in one
+              folder on one machine. This lesson turns it into a <strong>commit</strong>:
+              a permanent, labelled save-point in your project's history — the unit
+              professionals work in, and the thing that later proves <em>you</em> built
+              this.
+            </p>
+            <p style="margin-bottom:0">
+              Good news up front: the <strong>nested-repo</strong> worry from M1-01 is
+              already gone (we'll confirm it below), so your first commit is clean by
+              construction. Everything here points at real files and real commands you'll
+              run in <code>builder/</code> — but note the professional <em>why</em> behind
+              each, because that's the interview-grade part.
+            </p>
+          </div>
+
+          <div class="onpage" id="on-this-page"><!-- built by app.js --></div>
+
+          <!-- ============================================================
+               SECTION 1 — one repo, one boundary
+               ============================================================ -->
+          <h2 id="repo" data-toc="One repo, one boundary">
+            <span class="h2-index">01</span>One repo covers everything (and the nested-repo scare is over)
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            A <strong>git repository</strong> is just a folder with a hidden
+            <code>.git/</code> subfolder inside it. That <code>.git/</code> is the whole
+            database — every commit, every version, the entire history — for
+            <em>everything beneath it</em>. Your project has exactly one, at the very top:
+          </p>
+
+          <div class="code">
+            <div class="code-bar">
+              <span class="code-lang">the one repo boundary — one .git, at the root</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code>studying_for_hack_the_box/
+├── .git/            &lt;-- THE repository. tracks everything below.
+├── CLAUDE.md        (Claude commits this)
+├── study/           (Claude commits this — the site you're reading)
+└── builder/         (YOU commit this — your product code)
+    └── backend/     your Laravel app lives here
+        └── routes/web.php</code></pre>
+          </div>
+
+          <p>
+            So <code>study/</code> and <code>builder/</code> are not separate projects —
+            they're two folders inside <strong>one</strong> repo. That's deliberate: the
+            history honestly shows both the teaching material and your build side by side.
+          </p>
+
+          <div class="callout callout--note">
+            <span class="callout-tag">Why "nested repo" was a real worry — and why you're clear</span>
+            <p style="margin-bottom:8px">
+              When you ran <code>laravel new</code> in M1-01, the installer quietly did
+              <code>git init</code> <em>inside</em> <code>builder/backend/</code>, creating
+              a <strong>second</strong> <code>.git/</code> — a repo inside a repo. Git hates
+              that: the outer repo can't see inside a folder that has its own
+              <code>.git/</code>, so your Laravel app would have shown up as one opaque
+              blob (or an accidental "submodule"), and your files wouldn't really be
+              tracked. That nested <code>.git/</code> has since been removed, so you're on
+              the clean path. One command proves it — run it from inside the backend:
+            </p>
+            <div class="code" style="margin:0">
+              <div class="code-bar">
+                <span class="code-lang">"which repo am I actually in?"</span>
+                <button class="copy-btn">Copy</button>
+              </div>
+<pre><code>git rev-parse --show-toplevel</code></pre>
+            </div>
+            <p style="margin:8px 0 0">
+              If it prints the path ending in <code>studying_for_hack_the_box</code> (the
+              root) — good, one repo. If it ever printed <code>…/builder/backend</code>,
+              that would mean a nested repo had come back.
+            </p>
+          </div>
+
+          <!-- ============================================================
+               SECTION 2 — the three areas
+               ============================================================ -->
+          <h2 id="staging" data-toc="Working tree → staging → commit">
+            <span class="h2-index">02</span>The three areas: working tree → staging → commit
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            Your JS is rusty and your git may be too, so here's the one mental model the
+            rest of this depends on. A commit isn't made in one step — your changes pass
+            through <strong>three areas</strong>, and you control the gate between each:
+          </p>
+
+          <div class="flow">
+            <div class="flow-step">
+              <div class="flow-rail"><div class="flow-bullet">1</div><div class="flow-line"></div></div>
+              <div class="flow-body">
+                <div class="fb-title">Working tree — your files as they are right now</div>
+                <div class="fb-text">The actual files on disk, including your edits to <code>web.php</code>. Git sees them as "changed" but hasn't been told they matter yet. <code>git status</code> shows you this.</div>
+              </div>
+            </div>
+            <div class="flow-step">
+              <div class="flow-rail"><div class="flow-bullet">2</div><div class="flow-line"></div></div>
+              <div class="flow-body">
+                <div class="fb-title">Staging area (the "index") — what you've chosen for the next commit</div>
+                <div class="fb-text"><code>git add &lt;path&gt;</code> copies a change into a holding pen. Nothing is saved yet — you're <em>assembling</em> the next snapshot, deciding exactly what goes in.</div>
+              </div>
+            </div>
+            <div class="flow-step">
+              <div class="flow-rail"><div class="flow-bullet">3</div><div class="flow-line"></div></div>
+              <div class="flow-body">
+                <div class="fb-title">History — a sealed, labelled commit</div>
+                <div class="fb-text"><code>git commit -m "…"</code> freezes whatever is staged into a permanent snapshot with a message. <em>This</em> is the save-point. <code>git log</code> shows the chain of them.</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="callout callout--bridge">
+            <span class="callout-tag">Bridge — from what you know</span>
+            <p style="margin:0">
+              Think of it like sending a parcel: the working tree is your whole desk, the
+              staging area is the box you're packing (you choose what goes in), and the
+              commit is sealing and posting it with a label on top. The reason git splits
+              "pack" from "post" is so you can commit a <em>clean, logical subset</em> —
+              not just dump the entire desk every time.
+            </p>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Command</th><th>What it does</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>git status</code></td><td>Show what changed and what's currently staged. Run it constantly.</td></tr>
+                <tr><td><code>git add &lt;path&gt;</code></td><td>Stage a file or folder for the next commit.</td></tr>
+                <tr><td><code>git add -n &lt;path&gt;</code></td><td><strong>Dry run</strong> — <em>list</em> what would be staged without staging it. Your safety check.</td></tr>
+                <tr><td><code>git commit -m "msg"</code></td><td>Seal everything staged into a labelled save-point.</td></tr>
+                <tr><td><code>git log --oneline</code></td><td>Show the history, one commit per line.</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- ============================================================
+               SECTION 3 — what never gets committed
+               ============================================================ -->
+          <h2 id="ignore" data-toc="Never commit: secrets &amp; generated code">
+            <span class="h2-index">03</span>What you must <em>never</em> commit: secrets &amp; generated code
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            This is the professional heart of the lesson. A commit is forever and the repo
+            is shared (it's on GitHub). Two kinds of files must stay <strong>out</strong>:
+          </p>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Never commit</th><th>Why</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Secrets</strong> — <code>.env</code></td>
+                  <td>Holds your <code>APP_KEY</code> and database credentials. A secret committed to git history is <em>leaked</em> — deleting it later doesn't help, git remembers every version. This is the classic career-defining mistake; don't make it.</td>
+                </tr>
+                <tr>
+                  <td><strong>Generated / vendored code</strong> — <code>vendor/</code>, <code>node_modules/</code></td>
+                  <td>Thousands of files you didn't write, rebuilt on demand from <code>composer.lock</code> / <code>package-lock.json</code>. Committing them bloats the repo and hides <em>your</em> actual work in the noise.</td>
+                </tr>
+                <tr>
+                  <td><strong>Local machine state</strong> — <code>*.sqlite</code>, logs, caches</td>
+                  <td>Your local database file and logs are yours alone — not part of the shared source. Each dev creates their own.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <p>
+            You don't police this by hand — that's what a <strong><code>.gitignore</code></strong>
+            file is for. Each line is a pattern; git silently refuses to stage anything
+            that matches. You already wrote a good one at the repo root:
+          </p>
+
+          <div class="code">
+            <div class="code-bar">
+              <span class="code-lang">.gitignore (root) — the parts that matter here</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code># Dependencies
+vendor/
+
+# Environment files (never commit real secrets)
+.env
+.env.*
+!.env.example        # the ! UN-ignores this one
+
+# Local database
+*.sqlite</code></pre>
+          </div>
+
+          <div class="callout callout--note">
+            <span class="callout-tag">The <code>!.env.example</code> trick — and why it's clever</span>
+            <p style="margin:0">
+              <code>.env.*</code> ignores <em>every</em> env file. Then <code>!.env.example</code>
+              punches one exception back <em>in</em>. Why keep that one? Because
+              <code>.env.example</code> is a <strong>blank template</strong> — the same keys
+              (<code>DB_DATABASE=</code>, <code>APP_KEY=</code>) with the <em>values stripped
+              out</em>. A teammate clones the repo, copies <code>.env.example</code> to
+              <code>.env</code>, and fills in their own secrets. You commit the
+              <em>shape</em> of the config, never the secret <em>values</em>. Real, live
+              secrets go through the door and are never seen.
+            </p>
+          </div>
+
+          <div class="callout callout--key">
+            <span class="callout-tag">The pro habit: look before you commit</span>
+            <p style="margin-bottom:8px">
+              Never blind-commit. Before sealing anything, ask git to <em>show you</em> what
+              it would stage. A dry run of adding your whole backend prints a clean list —
+              no <code>vendor/</code>, no <code>.env</code>:
+            </p>
+            <div class="code" style="margin:0">
+              <div class="code-bar">
+                <span class="code-lang">list-only — nothing is staged by this</span>
+                <button class="copy-btn">Copy</button>
+              </div>
+<pre><code>git add -n builder/
+
+# add 'builder/backend/.env.example'   &lt;-- template: yes
+# add 'builder/backend/composer.json'
+# add 'builder/backend/routes/web.php' &lt;-- your routes: yes
+# ... ~57 real source files ...
+# (no builder/backend/.env  ·  no builder/backend/vendor/**)</code></pre>
+            </div>
+            <p style="margin:8px 0 0">
+              Seeing <code>.env.example</code> present but <code>.env</code> absent is the
+              proof your <code>.gitignore</code> is doing its job. <em>Then</em> you commit.
+            </p>
+          </div>
+
+          <!-- ============================================================
+               SECTION 4 — a scoped, labelled commit
+               ============================================================ -->
+          <h2 id="scope" data-toc="A scoped, labelled commit">
+            <span class="h2-index">04</span>Make it scoped, make it labelled
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            Two professional norms turn "a commit" into "a <em>good</em> commit."
+          </p>
+
+          <h3 style="margin:22px 0 6px">Scope — your commit contains only your work</h3>
+          <p>
+            The history should honestly say <em>who did what</em>. <code>study/</code> and
+            <code>CLAUDE.md</code> are Claude's and are already committed — they are not
+            yours to commit. So you stage <strong>only</strong> <code>builder/</code>:
+          </p>
+          <div class="code">
+            <div class="code-bar">
+              <span class="code-lang">stage your work, and nothing but your work</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code>git add builder/          # ✅ scoped to your product code
+# NOT: git add -A         # ❌ sweeps in anything lying around</code></pre>
+          </div>
+          <p>
+            This is why <code>git add -A</code> / <code>git add .</code> are a habit worth
+            <em>not</em> forming: they don't think about boundaries, and one day they'll
+            catch a file you never meant to include.
+          </p>
+
+          <h3 style="margin:22px 0 6px">Label — a Conventional Commit message</h3>
+          <p>
+            The message is a headline for your future self and your teammates. The team
+            standard for this project is <strong>Conventional Commits</strong>:
+          </p>
+          <div class="code">
+            <div class="code-bar">
+              <span class="code-lang">the shape of a commit message</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code>&lt;type&gt;: &lt;short, imperative summary&gt;
+
+# type is one of:  feat  fix  docs  chore  refactor  test  …
+# feat  = a new capability      chore = scaffolding / plumbing
+# good:  feat: add example text and JSON routes
+# weak:  update            (says nothing)
+# weak:  Added some routes because I was learning…   (that's a body, not a subject)</code></pre>
+          </div>
+
+          <div class="callout callout--note">
+            <span class="callout-tag">Honest history: this first commit is mostly scaffold</span>
+            <p style="margin:0">
+              Reality check — your first commit brings in the <em>whole</em> Laravel
+              skeleton (57 files), of which you personally wrote about three lines. So an
+              honest single message names both: something like
+              <code>chore: add Laravel backend scaffold and first routes</code>.
+              <strong>The pro move</strong> (optional, if you want the practice) is
+              <em>two</em> commits — one <code>chore:</code> for the untouched scaffold,
+              then one <code>feat:</code> for your routes — so the history cleanly separates
+              "vanilla Laravel" from "what Alex added." Either is fine today; write the
+              message yourself either way.
+            </p>
+          </div>
+
+          <!-- ============================================================
+               SECTION 5 — what's coming: branches & PRs
+               ============================================================ -->
+          <h2 id="next-habit" data-toc="Coming next: branches &amp; PRs">
+            <span class="h2-index">05</span>The next habit (not today): branches &amp; pull requests
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            You'll commit straight to <code>main</code> this once — it's your first commit,
+            you're solo, and keeping the mechanics minimal lets the <em>ideas</em> above
+            land. But bank where this is heading: professionals rarely commit product code
+            straight to <code>main</code>. They branch (<code>git switch -c feat/…</code>),
+            commit there, push, and open a <strong>Pull Request</strong> — a reviewable
+            proposal to merge — so a teammate reads it before it joins the main line.
+          </p>
+          <p style="margin-bottom:0">
+            We'll adopt that flow deliberately once your GitHub remote starts pulling its
+            weight (there's already an <code>origin</code> waiting). For now: one clean,
+            honest commit. The branch-and-PR muscle comes next.
+          </p>
+
+          <!-- ============================================================
+               SECTION 6 — check yourself
+               ============================================================ -->
+          <h2 id="check" data-toc="Check yourself">
+            <span class="h2-index">06</span>Check yourself
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            Predict each before you reveal it — then you'll confirm the real thing in the
+            checkpoint.
+          </p>
+
+          <div data-widget="quiz" data-kicker="Quiz" data-title="Predict the behaviour">
+            <script type="application/json">
+            {
+              "questions": [
+                {
+                  "q": "You're about to make your first commit of the backend. Which of these should NOT go into git?",
+                  "options": [
+                    "composer.json — it lists which dependencies your app needs.",
+                    ".env — it holds your APP_KEY and database credentials.",
+                    "routes/web.php — the routes you wrote."
+                  ],
+                  "answer": 1,
+                  "why": "`.env` holds live secrets. Git history is permanent and shared, so a committed secret is a leaked secret — deleting it later doesn't undo it. That's exactly why `.env` is in .gitignore and the blank `.env.example` template is committed instead."
+                },
+                {
+                  "q": "You run `git add builder/`. The vendor/ folder inside it has ~12,000 files. How many get staged?",
+                  "options": [
+                    "All ~12,000 — you added the whole folder, so everything under it goes in.",
+                    "Zero — vendor/ matches .gitignore, so git skips it even though you added its parent.",
+                    "Only the vendor files you personally edited."
+                  ],
+                  "answer": 1,
+                  "why": "git honours .gitignore even when you `add` a parent folder. vendor/ is regenerated by `composer install` from composer.lock, so you commit the lock file (the recipe), never the 12,000 rebuilt files."
+                },
+                {
+                  "q": "Which is a well-formed Conventional Commit subject for adding your two routes?",
+                  "options": [
+                    "update",
+                    "feat: add example text and JSON routes",
+                    "Added some routes to web.php because I was learning how routing and JSON responses work"
+                  ],
+                  "answer": 1,
+                  "why": "Conventional Commits are `type: short imperative summary`. `feat:` marks a new capability and the summary says what changed, briefly. 'update' says nothing; the long sentence is body material, not a subject line."
+                },
+                {
+                  "q": "The study/ pages were written and committed by Claude. When you commit your backend, what should the commit contain?",
+                  "options": [
+                    "Everything — run `git add -A` so nothing is missed.",
+                    "Only builder/ — study/ is Claude's and already committed; your commit is your work.",
+                    "Only routes/web.php — that's the sole file you edited."
+                  ],
+                  "answer": 1,
+                  "why": "Commits stay scoped and honest. `git add builder/` keeps the boundary between your work and Claude's. Option 3 is a trap: this is your FIRST commit, so the whole backend skeleton is still untracked too — your commit brings in all of builder/ (minus ignored files), not just the one file you touched."
+                }
+              ]
+            }
+            </script>
+          </div>
+
+          <!-- ============================================================
+               SECTION 7 — checkpoint
+               ============================================================ -->
+          <h2 id="checkpoint" data-toc="Checkpoint">
+            <span class="h2-index">07</span>Checkpoint — commit your work
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            Turn your routes into history. Work from the project root
+            (<code>studying_for_hack_the_box/</code>) in your terminal.
+            <strong>I'm describing the steps, not handing you a script</strong> — run them
+            yourself and read what each one says back.
+          </p>
+
+          <div data-widget="checklist"
+               data-progress-id="m1-03"
+               data-next="Tell Claude your commit landed (paste your git log --oneline). Next concept: the Vue front-end — standing it up and having it fetch one of your routes. That round-trip completes Milestone 1."
+               data-kicker="Checkpoint"
+               data-title="Make your first clean commit">
+            <script type="application/json">
+            {
+              "items": [
+                "From the project root, run <code>git status</code>. Confirm <code>builder/</code> shows as <b>untracked</b> and that <code>study/</code> is already committed (not listed as changed).",
+                "From inside <code>builder/backend</code>, run <code>git rev-parse --show-toplevel</code>. Confirm it prints the <b>project root</b> path — proof there's no nested repo.",
+                "Dry-run it first: <code>git add -n builder/</code>. <b>Read the list</b> and confirm <code>.env.example</code> is present but <code>.env</code> and <code>vendor/</code> are <b>absent</b>.",
+                "Stage only your work: <code>git add builder/</code>. (Deliberately <b>not</b> <code>git add -A</code>.) Run <code>git status</code> again to see it staged.",
+                "Commit with a <b>Conventional Commit</b> message <i>you write yourself</i> that honestly describes it (scaffold + your routes). Optional pro-move: split into two commits.",
+                "Run <code>git log --oneline</code>. Confirm your commit is there, authored by <b>you</b>, sitting on top of Claude's study commits."
+              ]
+            }
+            </script>
+          </div>
+
+          <div class="callout callout--key">
+            <span class="callout-tag">You're done when</span>
+            <p style="margin:0">
+              <code>git log --oneline</code> shows your own commit containing your backend,
+              <strong>and</strong> you can explain, in your own words, (a) why
+              <code>.env</code> must never be in there and (b) why staging only
+              <code>builder/</code> (not <code>-A</code>) is the honest, professional move.
+            </p>
+          </div>
+
+          <div class="callout callout--warn">
+            <span class="callout-tag">If something looks off</span>
+            <p style="margin:0">
+              If the dry run lists <code>.env</code>, a <code>vendor/</code> path, or a
+              <code>.sqlite</code> file — <strong>stop, don't commit</strong>, and tell me
+              exactly what you saw. That's a <code>.gitignore</code> not matching, and it's
+              much easier to fix <em>before</em> the commit than after. Bringing me a
+              surprised "wait, why is <em>this</em> in the list?" is a great outcome.
+            </p>
+          </div>
+
+          <p>
+            When your commit is in, come back and paste your <code>git log --oneline</code>
+            — and bring any questions the commands raised. <strong>Then</strong> we cross to
+            the browser: standing up the <strong>Vue</strong> app and having it
+            <code>fetch</code> one of the routes you just committed. That round-trip is the
+            last piece of Milestone 1.
+          </p>
+
+          <!-- ---- page end ---- -->
+          <nav class="page-end">
+            <a class="btn btn--ghost" href="m1-02-your-first-route.html">← M1-02</a>
+            <span class="pe-label">Next concept unlocks when this checkpoint is done</span>
+          </nav>
+
+          <footer class="site-foot">
+            <span>M1-03 · Your First Commit</span>
+            <span class="mono">CTF Platform — study site</span>
+          </footer>
+
+        </article>
+      </div>
+    </main>
+
+  </div>
+
+  <script src="assets/js/app.js"></script>
+  <script src="assets/js/widgets.js"></script>
+</body>
+</html>
