@@ -102,9 +102,17 @@
       ]
     },
     {
-      code: "M2", title: "Users Exist", state: "locked",
+      code: "M2", title: "Users Exist", state: "active",
       blurb: "Registration, login, auth tokens, and the Vue forms and auth state behind them.",
-      concepts: []
+      concepts: [
+        {
+          code: "M2-01", id: "m2-01",
+          title: "The Database & Migrations",
+          sub: "Databases from zero, SQLite as one file, schema-as-code",
+          file: "m2-01-the-database-and-migrations.html",
+          state: "available"
+        }
+      ]
     },
     {
       code: "M3", title: "Challenges Exist", state: "locked",

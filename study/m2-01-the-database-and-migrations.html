@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>M2-01 · The Database &amp; Migrations — CTF Platform Study</title>
+  <meta name="description" content="Databases from zero: why they exist, tables/rows/columns, SQLite as a single file, how Laravel connects, and migrations as schema-as-code — verified against your own users table." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%235fe3a1'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body class="page-concept" data-page="m2-01">
+
+  <!-- mobile top bar -->
+  <div class="topbar">
+    <button class="icon-btn" id="nav-toggle" aria-label="Toggle navigation">☰</button>
+    <div class="brand">
+      <div class="brand-mark">⚑</div>
+      <div class="brand-text"><b>CTF Platform</b><span>study</span></div>
+    </div>
+  </div>
+  <div class="nav-overlay" id="nav-overlay"></div>
+
+  <div class="layout">
+
+    <!-- ============ SIDEBAR ============ -->
+    <aside class="sidebar">
+      <a href="index.html" class="brand" style="text-decoration:none">
+        <div class="brand-mark">⚑</div>
+        <div class="brand-text">
+          <b>CTF Platform</b>
+          <span>study companion</span>
+        </div>
+      </a>
+      <nav id="sidebar-nav"><!-- built by app.js --></nav>
+    </aside>
+
+    <!-- ============ MAIN ============ -->
+    <main class="main">
+      <div class="content">
+        <article class="article">
+
+          <!-- ---- header ---- -->
+          <header class="concept-head">
+            <div class="breadcrumb">
+              <a href="index.html">Study</a>
+              <span class="sep">/</span>
+              <span>Milestone 2 — Users Exist</span>
+              <span class="sep">/</span>
+              <span>Concept 01</span>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <span class="pill pill--ms">M2 · Users Exist</span>
+              <span class="pill pill--idx">Concept 1</span>
+            </div>
+            <h1 class="concept-title">The Database &amp; Migrations</h1>
+            <div class="concept-meta">
+              <span>🎯 &nbsp;Goal: understand where your users will actually live</span>
+              <span>🆕 &nbsp;Databases from zero — no prior DB experience assumed</span>
+              <span>🧩 &nbsp;Concept: tables, SQLite, and schema-as-code</span>
+            </div>
+          </header>
+
+          <div class="callout callout--key">
+            <span class="callout-tag">Read me first</span>
+            <p>
+              Milestone 1 is done — you have a working full-stack app. Milestone 2 makes it a
+              <em>real</em> product: <strong>users</strong> who register and log in. But before a
+              user can register, they need somewhere to <strong>live</strong> — and that's a
+              <strong>database</strong>. You told me you've never set one up, so we start from
+              zero: what it is, how it's wired in, and the one file that <em>is</em> your
+              database.
+            </p>
+            <p style="margin-bottom:0">
+              The good news: you've been running a database this whole time without noticing.
+              This lesson is mostly about <em>understanding</em> what's already there and
+              verifying it — no new code today.
+            </p>
+          </div>
+
+          <div class="onpage" id="on-this-page"><!-- built by app.js --></div>
+
+          <!-- ============================================================
+               SECTION 1 — why a database
+               ============================================================ -->
+          <h2 id="why" data-toc="Why a database">
+            <span class="h2-index">01</span>Why a database (and not just a file)
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            So far your only "data" was hardcoded in a route — that
+            <code>['name' =&gt; 'John Doe', …]</code> array. It vanishes when the request ends.
+            Real users must <strong>persist</strong>: survive restarts, be looked up by email at
+            login, relate to their solves and scores. You <em>could</em> scribble them into a
+            JSON file… and immediately hit walls. A database is purpose-built for exactly this:
+          </p>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>You need to…</th><th>A flat file struggles</th><th>A database gives you</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>Find one user by email, fast</td><td>scan the whole file</td><td>indexed lookups</td></tr>
+                <tr><td>Handle many requests at once</td><td>corruption / races</td><td>safe concurrent access, transactions</td></tr>
+                <tr><td>Guarantee rules (unique email, required fields)</td><td>you police it by hand</td><td>constraints &amp; types enforced</td></tr>
+                <tr><td>Relate users ↔ solves ↔ challenges</td><td>tangled by hand</td><td>relationships (foreign keys)</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="callout callout--bridge">
+            <span class="callout-tag">Bridge — from what you know</span>
+            <p style="margin:0">
+              Think of a database table as a <strong>persistent, typed, indexed collection of
+              records</strong> — like an array of structs that survives the process dying, that
+              multiple clients can safely read and write at once, and that you can query by any
+              field without writing the search loop yourself. It's the systems answer to "where
+              does the state actually go."
+            </p>
+          </div>
+
+          <!-- ============================================================
+               SECTION 2 — tables/rows/columns
+               ============================================================ -->
+          <h2 id="tables" data-toc="Tables, rows, columns">
+            <span class="h2-index">02</span>Tables, rows, and columns
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            A relational database organises data into <strong>tables</strong>. A table is like a
+            strict spreadsheet: <strong>columns</strong> are the named, typed fields;
+            <strong>rows</strong> are the individual records. Your <code>users</code> table looks
+            roughly like this — and each person who registers becomes <em>one new row</em>:
+          </p>
+
+          <div class="code">
+            <div class="code-bar">
+              <span class="code-lang">the users table — columns across the top, rows down</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code> id | name       | email             | password (hashed)     | created_at
+----+------------+-------------------+-----------------------+------------
+  1 | Alex       | alex@example.com  | $2y$12$Xk9…           | 2026-07-02
+  2 | …          | …                 | …                     | …
+ ↑                                    ↑
+ primary key                          never stored in plain text (M2 security!)</code></pre>
+          </div>
+
+          <p>
+            The <code>id</code> column is the <strong>primary key</strong> — a unique handle for
+            each row, auto-assigned. Note the <code>password</code> column already hints at a
+            security lesson coming: it will hold a <em>hash</em>, never the real password. (Same
+            principle as the flags we'll hash later — the server never stores the secret itself.)
+          </p>
+
+          <!-- ============================================================
+               SECTION 3 — SQLite
+               ============================================================ -->
+          <h2 id="sqlite" data-toc="SQLite is one file">
+            <span class="h2-index">03</span>Your database is a single file (SQLite)
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            Here's why your "install a database" step felt like nothing: you're using
+            <strong>SQLite</strong>. Most databases (PostgreSQL, MySQL) are <em>server programs</em>
+            you install, start, and connect to over a port — real setup friction. SQLite is
+            different: the <strong>entire database is one file</strong>. Yours is right here:
+          </p>
+
+          <div class="code">
+            <div class="code-bar">
+              <span class="code-lang">your whole database — one file</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code>builder/backend/database/database.sqlite     ← every table and row lives in here</code></pre>
+          </div>
+
+          <p>
+            No server, no port, no login — just a file Laravel reads and writes. That's ideal for
+            learning and local dev. And Laravel knows to use it because of one line in your
+            <code>.env</code>:
+          </p>
+
+          <div class="code">
+            <div class="code-bar">
+              <span class="code-lang">builder/backend/.env — how Laravel finds the DB</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code>DB_CONNECTION=sqlite</code></pre>
+          </div>
+
+          <div class="callout callout--note">
+            <span class="callout-tag">"But the plan said PostgreSQL/MySQL…"</span>
+            <p style="margin:0">
+              It does — for <strong>production</strong>. We'll switch to a real database server at
+              deploy time (M5). The beautiful part: because Laravel talks to the DB through an
+              <em>abstraction</em> (migrations and Eloquent, next), switching is mostly changing
+              these <code>.env</code> values — <strong>not</strong> rewriting your queries. Learn
+              on the easy one now; swap the engine later for free. (One reason <code>*.sqlite</code>
+              is in your <code>.gitignore</code>: each environment has its own database.)
+            </p>
+          </div>
+
+          <!-- ============================================================
+               SECTION 4 — migrations
+               ============================================================ -->
+          <h2 id="migrations" data-toc="Migrations = schema as code">
+            <span class="h2-index">04</span>Migrations: your schema, as versioned code
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            So who <em>created</em> the <code>users</code> table inside that file? Not you, by
+            hand — a <strong>migration</strong> did. A migration is a PHP file that describes a
+            change to your database's <em>structure</em> ("create the users table with these
+            columns"). Running them applies the changes:
+          </p>
+
+          <div class="code">
+            <div class="code-bar">
+              <span class="code-lang">the command that builds your tables</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code>php artisan migrate        # apply any migrations that haven't run yet</code></pre>
+          </div>
+
+          <p>
+            Your scaffold shipped three migrations, and <code>laravel new</code> already ran them
+            for you (that's why <code>database.sqlite</code> isn't empty):
+          </p>
+
+          <div class="code">
+            <div class="code-bar">
+              <span class="code-lang">builder/backend/database/migrations/</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code>0001_01_01_000000_create_users_table.php     ← the one that matters for M2
+0001_01_01_000001_create_cache_table.php
+0001_01_01_000002_create_jobs_table.php</code></pre>
+          </div>
+
+          <p>Why bother with migration files instead of clicking tables into existence?</p>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Migrations give you…</th><th>Why it matters</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><b>Repeatable</b></td><td>A teammate — or your production server — runs <code>migrate</code> and gets the <em>identical</em> schema. No "works on my machine."</td></tr>
+                <tr><td><b>Versioned</b></td><td>Schema changes live in git, in order, next to the code that needs them. Your DB structure has a history.</td></tr>
+                <tr><td><b>Reversible</b></td><td>Made a mistake? <code>php artisan migrate:rollback</code> undoes the last batch.</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="callout callout--key">
+            <span class="callout-tag">The professional norm: schema-as-code</span>
+            <p style="margin:0">
+              You never edit a production database by hand. You write a migration, commit it, and
+              run it everywhere. Your DB's shape becomes reproducible, reviewable, and part of
+              your project's history — the same discipline as everything else in git. (Your three
+              migrations are already committed as part of the backend scaffold. ✓)
+            </p>
+          </div>
+
+          <!-- ============================================================
+               SECTION 5 — eloquent preview
+               ============================================================ -->
+          <h2 id="eloquent" data-toc="How Laravel talks to it">
+            <span class="h2-index">05</span>A peek ahead: how Laravel talks to the data
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            Migrations build the <em>structure</em> (the empty table). Reading and writing the
+            <em>rows</em> is a separate job, and Laravel gives you a clean tool for it:
+            <strong>Eloquent</strong>, its ORM. Instead of writing raw SQL, you work with a
+            <strong>model</strong> — a PHP class that maps to a table. Your scaffold already has
+            one: <code>app/Models/User.php</code> maps to the <code>users</code> table.
+          </p>
+          <div class="code">
+            <div class="code-bar">
+              <span class="code-lang">php — the flavour of Eloquent (illustrative, next lesson)</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code>User::create([...]);              // insert a row
+User::where('email', $e)->first(); // find a user by email
+User::count();                    // how many rows</code></pre>
+          </div>
+          <p style="margin-bottom:0">
+            Don't worry about the details yet — that's <em>next</em> lesson, when you build
+            registration and write the first real row. Today, just know: <strong>migrations shape
+            the table; Eloquent fills and reads it.</strong>
+          </p>
+
+          <!-- ============================================================
+               SECTION 6 — check yourself
+               ============================================================ -->
+          <h2 id="check" data-toc="Check yourself">
+            <span class="h2-index">06</span>Check yourself
+          </h2>
+          <hr class="section-rule" />
+          <p>Predict each before revealing it.</p>
+
+          <div data-widget="quiz" data-kicker="Quiz" data-title="Predict the behaviour">
+            <script type="application/json">
+            {
+              "questions": [
+                {
+                  "q": "In this project (in dev), what IS the database?",
+                  "options": [
+                    "A separate server program you must start, like php artisan serve.",
+                    "A single file — database/database.sqlite — with no server to run (SQLite).",
+                    "A cloud service you log into."
+                  ],
+                  "answer": 1,
+                  "why": "SQLite keeps the whole database in one file — no server, no port, no install. That's why your DB 'setup' was basically nothing. In production (M5) we'll switch to a server like Postgres/MySQL — mostly a config change, thanks to Laravel's abstraction."
+                },
+                {
+                  "q": "What is a migration?",
+                  "options": [
+                    "A tool that moves your app to a new server.",
+                    "A PHP file describing a schema change (e.g. 'create the users table'); `php artisan migrate` applies it.",
+                    "An automatic backup of your data."
+                  ],
+                  "answer": 1,
+                  "why": "Migrations are schema-as-code: versioned, repeatable descriptions of your tables. Running migrate creates/updates them; a teammate or your prod server runs the same files to get the identical structure."
+                },
+                {
+                  "q": "How does Laravel know which database to connect to?",
+                  "options": [
+                    "It's hardcoded in public/index.php.",
+                    "From the .env file — DB_CONNECTION (yours says sqlite).",
+                    "It auto-detects whatever is installed."
+                  ],
+                  "answer": 1,
+                  "why": ".env holds environment config, including DB_CONNECTION. Yours is sqlite, pointing at database/database.sqlite. Switching to Postgres later is largely changing these .env values — your migrations and Eloquent code stay the same."
+                },
+                {
+                  "q": "Your users table exists (the migration ran). How many rows (users) are in it right now?",
+                  "options": [
+                    "Zero — the migration created the table's structure, not any users.",
+                    "One — Laravel seeds a default admin.",
+                    "It depends on the size of database.sqlite."
+                  ],
+                  "answer": 0,
+                  "why": "A migration defines columns; it doesn't insert data. Nobody has registered yet, so the users table is empty (0 rows). Next lesson you'll write the very first row by registering a user."
+                }
+              ]
+            }
+            </script>
+          </div>
+
+          <!-- ============================================================
+               SECTION 7 — checkpoint
+               ============================================================ -->
+          <h2 id="checkpoint" data-toc="Checkpoint">
+            <span class="h2-index">07</span>Checkpoint — meet your database
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            No code today — you're going to <strong>inspect</strong> what's already there so the
+            database stops being a black box. Run these in <code>builder/backend/</code>.
+          </p>
+
+          <div data-widget="checklist"
+               data-progress-id="m2-01"
+               data-next="Tell Claude your users table checks out (columns + 0 rows). Next: REGISTRATION — the endpoint that hashes a password and writes the first real user into that table, with the User model + Eloquent."
+               data-kicker="Checkpoint"
+               data-title="Verify your database">
+            <script type="application/json">
+            {
+              "items": [
+                "Confirm the wiring: <code>.env</code> has <code>DB_CONNECTION=sqlite</code>, and the file <code>database/database.sqlite</code> exists.",
+                "Run <code>php artisan migrate:status</code>. See the three migrations (users, cache, jobs) and confirm they show <b>Ran</b>.",
+                "If any show <b>Pending</b>, run <code>php artisan migrate</code> to apply them (already-run ones are skipped — safe to run anytime).",
+                "Inspect the table's shape: <code>php artisan db:table users</code>. Note the columns — <code>id</code>, <code>name</code>, <code>email</code>, <code>password</code>, timestamps.",
+                "Confirm it's empty: <code>php artisan tinker</code>, then type <code>\\App\\Models\\User::count()</code> — expect <code>0</code>. (Type <code>exit</code> to leave tinker.)",
+                "<b>Read</b> (don't edit) <code>database/migrations/0001_01_01_000000_create_users_table.php</code> — spot how the columns you just listed are defined in code. That's schema-as-code."
+              ]
+            }
+            </script>
+          </div>
+
+          <div class="callout callout--key">
+            <span class="callout-tag">You're done when</span>
+            <p style="margin:0">
+              You've confirmed the database is connected, the <code>users</code> table exists with
+              its columns and <strong>0 rows</strong>, and you can explain — in your words — what a
+              migration is and why SQLite needed no server to install.
+            </p>
+          </div>
+
+          <div class="callout callout--warn">
+            <span class="callout-tag">If a command errors</span>
+            <p style="margin:0">
+              <code>could not find driver</code> means PHP's SQLite extension isn't enabled — tell
+              me and we'll switch it on. <code>database file does not exist</code> — create the
+              empty file (<code>database/database.sqlite</code>) and re-run <code>migrate</code>.
+              Anything else: paste the exact output and we'll sort it. (Your 96&nbsp;KB
+              <code>database.sqlite</code> suggests it's already healthy.)
+            </p>
+          </div>
+
+          <p>
+            When your users table checks out, come back and tell me what
+            <code>db:table users</code> showed. <strong>Then</strong> the real M2 begins:
+            <strong>registration</strong> — an endpoint that takes a name, email, and password,
+            <em>hashes</em> the password (never storing it raw), and writes your very first user
+            into that table using the <code>User</code> model. Your first row.
+          </p>
+
+          <!-- ---- page end ---- -->
+          <nav class="page-end">
+            <a class="btn btn--ghost" href="m1-08-the-round-trip.html">← M1-08</a>
+            <span class="pe-label">Next concept unlocks when this checkpoint is done</span>
+          </nav>
+
+          <footer class="site-foot">
+            <span>M2-01 · The Database &amp; Migrations</span>
+            <span class="mono">CTF Platform — study site</span>
+          </footer>
+
+        </article>
+      </div>
+    </main>
+
+  </div>
+
+  <script src="assets/js/app.js"></script>
+  <script src="assets/js/widgets.js"></script>
+</body>
+</html>
