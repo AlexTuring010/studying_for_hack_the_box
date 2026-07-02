@@ -70,6 +70,13 @@
           sub: "The frontend toolchain, creating the Vue app, two servers at once",
           file: "m1-04-standing-up-vue.html",
           state: "available"
+        },
+        {
+          code: "M1-05", id: "m1-05",
+          title: "How Vue Boots",
+          sub: "The empty #app div, CSS selectors, and createApp().mount() under the hood",
+          file: "m1-05-how-vue-boots.html",
+          state: "available"
         }
       ]
     },

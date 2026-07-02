@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>M1-05 · How Vue Boots — CTF Platform Study</title>
+  <meta name="description" content="Under the hood: the empty #app div, what a CSS selector is, and how createApp(App).mount('#app') hands the page over to Vue — traced through your own scaffold files." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%235fe3a1'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body class="page-concept" data-page="m1-05">
+
+  <!-- mobile top bar -->
+  <div class="topbar">
+    <button class="icon-btn" id="nav-toggle" aria-label="Toggle navigation">☰</button>
+    <div class="brand">
+      <div class="brand-mark">⚑</div>
+      <div class="brand-text"><b>CTF Platform</b><span>study</span></div>
+    </div>
+  </div>
+  <div class="nav-overlay" id="nav-overlay"></div>
+
+  <div class="layout">
+
+    <!-- ============ SIDEBAR ============ -->
+    <aside class="sidebar">
+      <a href="index.html" class="brand" style="text-decoration:none">
+        <div class="brand-mark">⚑</div>
+        <div class="brand-text">
+          <b>CTF Platform</b>
+          <span>study companion</span>
+        </div>
+      </a>
+      <nav id="sidebar-nav"><!-- built by app.js --></nav>
+    </aside>
+
+    <!-- ============ MAIN ============ -->
+    <main class="main">
+      <div class="content">
+        <article class="article">
+
+          <!-- ---- header ---- -->
+          <header class="concept-head">
+            <div class="breadcrumb">
+              <a href="index.html">Study</a>
+              <span class="sep">/</span>
+              <span>Milestone 1 — Plumbing</span>
+              <span class="sep">/</span>
+              <span>Concept 05</span>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <span class="pill pill--ms">M1 · Plumbing</span>
+              <span class="pill pill--idx">Concept 5</span>
+            </div>
+            <h1 class="concept-title">How Vue Boots</h1>
+            <div class="concept-meta">
+              <span>🎯 &nbsp;Goal: understand the line <code>createApp(App).mount('#app')</code></span>
+              <span>🔍 &nbsp;You asked the perfect question — here's the whole answer</span>
+              <span>🧩 &nbsp;Concept: the empty shell + the hand-off to Vue</span>
+            </div>
+          </header>
+
+          <div class="callout callout--key">
+            <span class="callout-tag">Read me first</span>
+            <p>
+              You came back from the last checkpoint with exactly the right question:
+              <em>"I couldn't say I know what <code>'#app'</code> does in
+              <code>createApp(App).mount('#app')</code>."</em> That one line is the hinge the
+              whole frontend swings on — it's the moment a plain, near-empty HTML page hands
+              itself over to Vue. Understand it and the scaffold stops being magic.
+            </p>
+            <p style="margin-bottom:0">
+              Everything here is traced through <strong>your own</strong> files:
+              <code>builder/frontend/index.html</code>, <code>src/main.js</code>, and
+              <code>src/App.vue</code>. Open them next to this page.
+            </p>
+          </div>
+
+          <div class="onpage" id="on-this-page"><!-- built by app.js --></div>
+
+          <!-- ============================================================
+               SECTION 1 — the empty shell
+               ============================================================ -->
+          <h2 id="shell" data-toc="The empty shell">
+            <span class="h2-index">01</span>The page Vue is handed is almost empty
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            Here's the surprise that makes everything click. Open your
+            <code>index.html</code> — the <em>entire</em> body is two lines:
+          </p>
+
+          <div class="code">
+            <div class="code-bar">
+              <span class="code-lang">builder/frontend/index.html — the whole &lt;body&gt;</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code>&lt;body&gt;
+  &lt;div id="app"&gt;&lt;/div&gt;                              &lt;-- an EMPTY box
+  &lt;script type="module" src="/src/main.js"&gt;&lt;/script&gt;  &lt;-- the JS that fills it
+&lt;/body&gt;</code></pre>
+          </div>
+
+          <p>
+            That's it. There is no header, no logo, no welcome text in the HTML file. Just
+            <strong>one empty <code>&lt;div&gt;</code></strong> and a
+            <strong>script tag</strong>. Everything you see at
+            <code>localhost:5173</code> — the Vue logo, "You did it!", all of it — is
+            <em>drawn by JavaScript, in the browser, after the page loads.</em>
+          </p>
+
+          <div class="callout callout--bridge">
+            <span class="callout-tag">Bridge — back to M1-02</span>
+            <p style="margin:0">
+              Remember the contrast we set up: <strong>Laravel</strong> builds full HTML on
+              the server and sends the finished page (the welcome page arrived complete).
+              <strong>Vue</strong> does the opposite — the server sends an empty shell plus a
+              script, and the <em>browser</em> assembles the page. This is
+              <strong>client-side rendering</strong>, and that empty <code>&lt;div
+              id="app"&gt;</code> is the plot of land Vue builds on. You'll literally
+              <em>see</em> the difference in the checkpoint.
+            </p>
+          </div>
+
+          <!-- ============================================================
+               SECTION 2 — #app is a CSS selector
+               ============================================================ -->
+          <h2 id="selector" data-toc="'#app' is a CSS selector">
+            <span class="h2-index">02</span><code>'#app'</code> is just a CSS selector
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            Your direct question: what is <code>'#app'</code>? It's a
+            <strong>CSS selector</strong> — the same little pattern language you use to point
+            at an element on a page. Your web skills are rusty, so here's the refresher that
+            matters:
+          </p>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Selector</th><th>Means "the element(s)…"</th><th>Matches</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>#app</code></td><td>…with <code>id="app"</code></td><td><code>&lt;div id="app"&gt;</code></td></tr>
+                <tr><td><code>.card</code></td><td>…with <code>class="card"</code></td><td><code>&lt;div class="card"&gt;</code></td></tr>
+                <tr><td><code>div</code></td><td>…that are <code>&lt;div&gt;</code> tags</td><td>every <code>&lt;div&gt;</code></td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <p>
+            So <code>'#app'</code> means <em>"the element whose <code>id</code> is
+            <code>app</code>"</em> — and there's exactly one, the empty div in your
+            <code>index.html</code>. The <code>#</code> is the "id" sigil. It's the same
+            string you'd hand to plain JavaScript's
+            <code>document.querySelector('#app')</code> to grab that div. Vue didn't invent
+            <code>#app</code>; it's borrowing the browser's normal way of naming an element.
+          </p>
+
+          <div class="callout callout--note">
+            <span class="callout-tag">The name "app" isn't special</span>
+            <p style="margin:0">
+              <code>app</code> is just a convention. If you renamed the div to
+              <code>&lt;div id="ctf"&gt;</code> and called <code>.mount('#ctf')</code>, it
+              would work identically. What matters is only that the selector in
+              <code>main.js</code> <strong>matches</strong> a real element in
+              <code>index.html</code>. (You'll prove what happens when it <em>doesn't</em>
+              match, in the checkpoint.)
+            </p>
+          </div>
+
+          <!-- ============================================================
+               SECTION 3 — the boot chain
+               ============================================================ -->
+          <h2 id="chain" data-toc="The boot chain">
+            <span class="h2-index">03</span>The boot chain: <code>index.html → main.js → App.vue</code>
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            Now the full sequence — the frontend's version of M1-02's "which code builds the
+            page." Trace it in your own files:
+          </p>
+
+          <div class="flow">
+            <div class="flow-step">
+              <div class="flow-rail"><div class="flow-bullet">1</div><div class="flow-line"></div></div>
+              <div class="flow-body">
+                <div class="fb-title">Browser loads <code>index.html</code></div>
+                <div class="fb-text">It finds the empty <code>&lt;div id="app"&gt;</code> and a <code>&lt;script type="module" src="/src/main.js"&gt;</code>. The page is blank so far.</div>
+              </div>
+            </div>
+            <div class="flow-step">
+              <div class="flow-rail"><div class="flow-bullet">2</div><div class="flow-line"></div></div>
+              <div class="flow-body">
+                <div class="fb-title">The browser runs <code>main.js</code></div>
+                <div class="fb-text">This is the JavaScript <em>entry point</em> — the frontend's equivalent of <code>public/index.php</code>. It imports Vue and your root component.</div>
+              </div>
+            </div>
+            <div class="flow-step">
+              <div class="flow-rail"><div class="flow-bullet">3</div><div class="flow-line"></div></div>
+              <div class="flow-body">
+                <div class="fb-title"><code>createApp(App)</code> builds the app</div>
+                <div class="fb-text">It creates a Vue application instance whose <em>root</em> is your <code>App</code> component (imported from <code>App.vue</code>). Nothing is on screen yet — the app exists only in memory.</div>
+              </div>
+            </div>
+            <div class="flow-step">
+              <div class="flow-rail"><div class="flow-bullet">4</div><div class="flow-line"></div></div>
+              <div class="flow-body">
+                <div class="fb-title"><code>.mount('#app')</code> attaches it to the page</div>
+                <div class="fb-text">Vue finds the element matching <code>#app</code>, renders <code>App.vue</code>'s template into it, and takes over that subtree. The empty div is now full. <strong>This is the hand-off.</strong></div>
+              </div>
+            </div>
+          </div>
+
+          <p>Reading that one line, left to right:</p>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Piece</th><th>What it does</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>createApp(</code>&hairsp;<code>App</code>&hairsp;<code>)</code></td><td>"Make a new Vue app, using this component as the top of the tree." Returns an <em>app instance</em>.</td></tr>
+                <tr><td><code>.mount(</code>&hairsp;<code>'#app'</code>&hairsp;<code>)</code></td><td>"Render that app into the DOM element matching this selector, and keep it live from now on."</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="callout callout--note">
+            <span class="callout-tag">Where Router and Pinia will slot in later</span>
+            <p style="margin:0">
+              That app instance is also the plug-board for the add-ons we skipped. When we
+              need them, this line grows a middle:
+              <code>createApp(App).use(router).use(pinia).mount('#app')</code> — same start,
+              same end, plugins clicked in between. Nothing to do now; just so the shape
+              won't surprise you at M2/M3.
+            </p>
+          </div>
+
+          <!-- ============================================================
+               SECTION 4 — a tree of components
+               ============================================================ -->
+          <h2 id="tree" data-toc="A tree of components">
+            <span class="h2-index">04</span>What gets rendered: a tree of components
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            <code>createApp(App)</code> names <code>App.vue</code> the <strong>root</strong>.
+            But look inside your <code>App.vue</code> — its <code>&lt;template&gt;</code> uses
+            <em>other</em> components:
+          </p>
+
+          <div class="code">
+            <div class="code-bar">
+              <span class="code-lang">builder/frontend/src/App.vue — the shape (yours)</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code>&lt;script setup&gt;
+import HelloWorld from './components/HelloWorld.vue'
+import TheWelcome from './components/TheWelcome.vue'
+&lt;/script&gt;
+
+&lt;template&gt;
+  ... &lt;HelloWorld msg="You did it!" /&gt; ...   &lt;-- a child component, used like a tag
+  ... &lt;TheWelcome /&gt; ...
+&lt;/template&gt;</code></pre>
+          </div>
+
+          <p>
+            So the UI is a <strong>tree</strong>: <code>App</code> at the top, with
+            <code>HelloWorld</code> and <code>TheWelcome</code> as children (and those have
+            children of their own). Mounting the root mounts the whole tree. A component used
+            in a template like <code>&lt;HelloWorld /&gt;</code> is just… a custom tag that
+            Vue expands into that component's own template — the same nesting idea as calling
+            a function that calls other functions.
+          </p>
+
+          <div class="callout callout--bridge">
+            <span class="callout-tag">Bridge — React, if it helps (optional)</span>
+            <p style="margin:0">
+              If your Next.js memory stirs: <code>createApp(App).mount('#app')</code> is
+              Vue's spelling of
+              <code>createRoot(document.getElementById('root')).render(&lt;App /&gt;)</code>.
+              Same three ideas — pick a root component, pick a DOM element, render one into
+              the other. Different words, identical concept. Ignore this if it doesn't land.
+            </p>
+          </div>
+
+          <!-- ============================================================
+               SECTION 5 — see it with your own eyes
+               ============================================================ -->
+          <h2 id="see" data-toc="See it with your own eyes">
+            <span class="h2-index">05</span>How to <em>see</em> the hand-off happen
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            You don't have to take my word for "the div starts empty and JS fills it." The
+            browser will show you both states, and the gap between them <em>is</em> the whole
+            concept:
+          </p>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>What you open</th><th>What it shows</th><th>The <code>#app</code> div is…</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><b>View Page Source</b> (Ctrl+U)</td>
+                  <td>The <em>raw HTML the server sent</em>, before any JS ran.</td>
+                  <td><strong>empty</strong> — <code>&lt;div id="app"&gt;&lt;/div&gt;</code></td>
+                </tr>
+                <tr>
+                  <td><b>DevTools → Elements</b> (F12)</td>
+                  <td>The <em>live DOM</em>, after Vue rendered into it.</td>
+                  <td><strong>full</strong> — logo, headings, the whole tree</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <p>
+            Same div, two pictures. "View Source" is the empty plot of land; "Elements" is the
+            house Vue built on it. That difference is client-side rendering, made visible —
+            and it's the first thing you'll confirm in the checkpoint.
+          </p>
+
+          <!-- ============================================================
+               SECTION 6 — check yourself
+               ============================================================ -->
+          <h2 id="check" data-toc="Check yourself">
+            <span class="h2-index">06</span>Check yourself
+          </h2>
+          <hr class="section-rule" />
+          <p>Predict each before revealing it.</p>
+
+          <div data-widget="quiz" data-kicker="Quiz" data-title="Predict the behaviour">
+            <script type="application/json">
+            {
+              "questions": [
+                {
+                  "q": "In `createApp(App).mount('#app')`, what is `'#app'`?",
+                  "options": [
+                    "A JavaScript variable named app.",
+                    "A CSS selector for the element with id=\"app\" — the empty div in index.html.",
+                    "The App.vue file being imported."
+                  ],
+                  "answer": 1,
+                  "why": "`#app` is a CSS selector: the `#` means 'id', so it points at `<div id=\"app\">`. It's the same string document.querySelector('#app') would use. It tells Vue which element to render into."
+                },
+                {
+                  "q": "You open localhost:5173 and use View Page Source (the raw HTML from the server). What's inside `<div id=\"app\">`?",
+                  "options": [
+                    "The full rendered page — logo, headings, everything.",
+                    "It's empty. Vue fills it in the browser after main.js runs.",
+                    "A copy of App.vue's source code."
+                  ],
+                  "answer": 1,
+                  "why": "The server sends an empty shell. View Source shows that pre-JavaScript HTML, so the div is empty. Only the live DOM (DevTools → Elements) shows the rendered tree, because Vue builds it client-side after load."
+                },
+                {
+                  "q": "You change main.js to `.mount('#nope')` but index.html still has `<div id=\"app\">`. What happens?",
+                  "options": [
+                    "Vue creates a #nope element automatically and renders there.",
+                    "Nothing renders — no element matches #nope, so the page stays blank and Vue logs a warning.",
+                    "Vue falls back to rendering into <body>."
+                  ],
+                  "answer": 1,
+                  "why": "mount() needs to find an element matching the selector. If none matches, there's nothing to render into — the page stays blank and Vue warns in the console. The selector must match a real element in index.html."
+                },
+                {
+                  "q": "What role does App.vue play?",
+                  "options": [
+                    "It's a CSS helper file.",
+                    "It's the ROOT component — createApp(App) puts it at the top, and other components nest inside it.",
+                    "It's the server that sends the HTML."
+                  ],
+                  "answer": 1,
+                  "why": "App.vue is the root of the component tree. createApp(App) makes it the top; its template pulls in children like HelloWorld and TheWelcome, which have children of their own. Mounting the root mounts the whole tree."
+                }
+              ]
+            }
+            </script>
+          </div>
+
+          <!-- ============================================================
+               SECTION 7 — checkpoint
+               ============================================================ -->
+          <h2 id="checkpoint" data-toc="Checkpoint">
+            <span class="h2-index">07</span>Checkpoint — prove it to yourself
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            No new code today — this is an <strong>investigation</strong>. You'll trace the
+            boot chain in your files and <em>watch</em> the hand-off with your own eyes. With
+            <code>npm run dev</code> running, work through these:
+          </p>
+
+          <div data-widget="checklist"
+               data-progress-id="m1-05"
+               data-next="Tell Claude you can explain the mount, and bring any new questions. NEXT is the big one: App.vue fetches your /test-php-array route — data goes PHP → JSON → JavaScript → screen, we tame CORS, and Milestone 1 is DONE."
+               data-kicker="Checkpoint"
+               data-title="Trace the hand-off">
+            <script type="application/json">
+            {
+              "items": [
+                "In <code>index.html</code>, find the mount target: the empty <code>&lt;div id=\"app\"&gt;&lt;/div&gt;</code>. Notice how little else is in the &lt;body&gt;.",
+                "In <code>src/main.js</code>, read <code>createApp(App).mount('#app')</code> and say each half's job out loud: build the app with App.vue as root, then render it into the #app div.",
+                "Open <code>localhost:5173</code>, then <b>View Page Source</b> (Ctrl+U). Confirm <code>&lt;div id=\"app\"&gt;</code> is <b>empty</b> in the raw HTML.",
+                "Open <b>DevTools → Elements</b> (F12), find the same <code>&lt;div id=\"app\"&gt;</code>, and confirm it's now <b>full</b> of rendered elements. That gap is Vue rendering in the browser.",
+                "<b>Break it to believe it:</b> change <code>'#app'</code> to <code>'#nope'</code> in main.js, save, and watch the page go blank. Read the warning in the DevTools <b>Console</b>.",
+                "<b>Undo cleanly:</b> <code>git restore builder/frontend/src/main.js</code> — the page comes back. Notice: committing first made that experiment fearless."
+              ]
+            }
+            </script>
+          </div>
+
+          <div class="callout callout--key">
+            <span class="callout-tag">You're done when</span>
+            <p style="margin:0">
+              You can explain, in your own words: (a) what <code>'#app'</code> is, (b) what
+              <code>createApp(App).mount('#app')</code> does step by step, and (c) why View
+              Source shows an empty div but DevTools shows a full one.
+            </p>
+          </div>
+
+          <div class="callout callout--warn">
+            <span class="callout-tag">If the page doesn't come back</span>
+            <p style="margin:0">
+              After <code>git restore</code>, if <code>:5173</code> is still blank, hard-refresh
+              the browser (Ctrl+Shift+R). If it's still broken, run <code>git status</code> —
+              it should show <em>no</em> changes to <code>main.js</code>. Bring me the output
+              and the exact console message and we'll sort it.
+            </p>
+          </div>
+
+          <p>
+            When you can narrate that one line confidently, come back — with any fresh
+            questions it stirred up. <strong>Then</strong> the Milestone 1 finale: we open
+            <code>App.vue</code>, write a <code>fetch</code> to your
+            <code>/test-php-array</code> route, refresh your <code>async</code>/<code>await</code>,
+            handle the browser's cross-origin rule (CORS), and watch your JSON travel from PHP
+            all the way to the screen.
+          </p>
+
+          <!-- ---- page end ---- -->
+          <nav class="page-end">
+            <a class="btn btn--ghost" href="m1-04-standing-up-vue.html">← M1-04</a>
+            <span class="pe-label">Next concept unlocks when this checkpoint is done</span>
+          </nav>
+
+          <footer class="site-foot">
+            <span>M1-05 · How Vue Boots</span>
+            <span class="mono">CTF Platform — study site</span>
+          </footer>
+
+        </article>
+      </div>
+    </main>
+
+  </div>
+
+  <script src="assets/js/app.js"></script>
+  <script src="assets/js/widgets.js"></script>
+</body>
+</html>
