@@ -233,9 +233,25 @@ php artisan migrate:status        # look for ...create_personal_access_tokens_ta
             the top, and add <code>HasApiTokens</code> to the model's existing trait line (the one
             that currently reads <code>use HasFactory, Notifiable;</code>). That trait is what adds
             the <code>createToken()</code> method — without it, issuing a token later would fatal.
-            <em>(You make this edit; it's the same "add to the trait list" shape you can see
-            already in the file.)</em>
+            <em>(You make this edit yourself.)</em>
           </p>
+
+          <div class="callout callout--note">
+            <span class="callout-tag">Two different <code>use</code> keywords — don't mix them up</span>
+            <p style="margin:0">
+              PHP overloads <code>use</code> for two unrelated jobs, and both appear in this step.
+              <strong>At the top of the file</strong>, <code>use Some\Namespace\Class;</code> is an
+              <em>import</em> — it says <em>where</em> a class lives (like the
+              <code>use App\Models\User;</code> you added in <code>api.php</code>).
+              <strong>Inside the class body</strong>, <code>use TraitA, TraitB;</code> is a
+              <em>trait</em> statement — it mixes those traits' methods into the class. A
+              <strong>trait</strong> is PHP's "mixin": since a class can only <code>extend</code> one
+              parent, traits graft in shared methods (<code>HasApiTokens</code> brings
+              <code>createToken()</code>). So Step 3 is really <strong>two</strong> edits — add the
+              <em>import</em> up top, <em>and</em> add <code>HasApiTokens</code> to the in-class trait
+              line — and you need both.
+            </p>
+          </div>
 
           <!-- ============================================================
                SECTION 5 — prove it in tinker
