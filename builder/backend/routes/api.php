@@ -26,3 +26,32 @@ Route::post('/register', function (Request $request) {
         'user' => $user,
     ];
 });
+
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\ValidationException;
+
+Route::post('/login', function (Request $request) {
+    $validated = $request->validate([
+        'email' => 'required|string|email',
+        'password' => 'required|string',    
+    ]);
+
+    $email = $validated['email'];
+    $plainPassword = $validated['password'];
+
+    $user = User::where('email', $email)->first();
+
+    if (!$user || !Hash::check($plainPassword, $user->password)) {
+        throw ValidationException::withMessages([
+            'email' => ['The provided credentials are incorrect. '],
+        ]);
+    };
+
+    $token = $user->createToken('auth-token')->plainTextToken;
+
+    return [
+        'message' => 'Login successful',
+        'token' => $token,
+        'user' => $user,
+    ];
+});
