@@ -146,6 +146,13 @@
           sub: "Find the user, verify with Hash::check, fail safely, issue a token",
           file: "m2-06-the-login-endpoint.html",
           state: "available"
+        },
+        {
+          code: "M2-07", id: "m2-07",
+          title: "Protecting a Route",
+          sub: "Middleware, auth:sanctum, and reading the user with $request->user()",
+          file: "m2-07-protecting-a-route.html",
+          state: "available"
         }
       ]
     },

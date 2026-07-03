@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>M2-07 · Protecting a Route — CTF Platform Study</title>
+  <meta name="description" content="Make the token earn its keep: middleware as a gate that runs before your handler, the auth:sanctum guard that turns a Bearer token into an authenticated user (or a 401), reading that user with $request->user(), and deciding which routes are public vs protected." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%235fe3a1'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body class="page-concept" data-page="m2-07">
+
+  <!-- mobile top bar -->
+  <div class="topbar">
+    <button class="icon-btn" id="nav-toggle" aria-label="Toggle navigation">☰</button>
+    <div class="brand">
+      <div class="brand-mark">⚑</div>
+      <div class="brand-text"><b>CTF Platform</b><span>study</span></div>
+    </div>
+  </div>
+  <div class="nav-overlay" id="nav-overlay"></div>
+
+  <div class="layout">
+
+    <!-- ============ SIDEBAR ============ -->
+    <aside class="sidebar">
+      <a href="index.html" class="brand" style="text-decoration:none">
+        <div class="brand-mark">⚑</div>
+        <div class="brand-text">
+          <b>CTF Platform</b>
+          <span>study companion</span>
+        </div>
+      </a>
+      <nav id="sidebar-nav"><!-- built by app.js --></nav>
+    </aside>
+
+    <!-- ============ MAIN ============ -->
+    <main class="main">
+      <div class="content">
+        <article class="article">
+
+          <!-- ---- header ---- -->
+          <header class="concept-head">
+            <div class="breadcrumb">
+              <a href="index.html">Study</a>
+              <span class="sep">/</span>
+              <span>Milestone 2 — Users Exist</span>
+              <span class="sep">/</span>
+              <span>Concept 07</span>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <span class="pill pill--ms">M2 · Users Exist</span>
+              <span class="pill pill--idx">Concept 7</span>
+            </div>
+            <h1 class="concept-title">Protecting a Route</h1>
+            <div class="concept-meta">
+              <span>🎯 &nbsp;Goal: a route that only a valid token can reach</span>
+              <span>🚪 &nbsp;Middleware as a gate, <code>auth:sanctum</code> as the guard</span>
+              <span>🧩 &nbsp;Concept: middleware + <code>$request-&gt;user()</code></span>
+            </div>
+          </header>
+
+          <div class="callout callout--key">
+            <span class="callout-tag">Read me first</span>
+            <p>
+              Login hands back a token — but right now that token is a key to a door that doesn't
+              exist. <em>Every</em> route in your app is wide open; nothing checks for the token.
+              This lesson builds the door: a <strong>protected route</strong> that rejects anyone
+              without a valid token (<code>401</code>), and lets a valid one through <em>and tells
+              you who they are</em>.
+            </p>
+            <p style="margin-bottom:0">
+              That completes the arc of M2: <strong>register → login → make an authenticated
+              request</strong>. The mechanism is <strong>middleware</strong> — a new Laravel idea,
+              taught properly below — and one line of it (<code>auth:sanctum</code>) does the work.
+            </p>
+          </div>
+
+          <div class="onpage" id="on-this-page"><!-- built by app.js --></div>
+
+          <!-- ============================================================
+               SECTION 1 — the problem
+               ============================================================ -->
+          <h2 id="problem" data-toc="Why the token does nothing yet">
+            <span class="h2-index">01</span>Right now your token does nothing
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            Think about what you've actually got after login: a token string sitting in the
+            response. But none of your existing routes — <code>/register</code>, <code>/login</code>,
+            <code>/test-php-array</code>, and the rest — ever <em>look</em> at any token; they run for
+            anybody who calls them. So the token is real, but nothing in your app requires it or
+            reacts to it yet.
+          </p>
+          <p>
+            To make it matter you need two things, and this lesson delivers both:
+          </p>
+          <ul>
+            <li><strong>A gate</strong> — a route that says "no valid token, no entry" and answers
+              <code>401 Unauthorized</code> to anyone without one.</li>
+            <li><strong>An identity</strong> — once someone's through the gate, a way to know
+              <em>which user</em> this is, so the route can act on their behalf.</li>
+          </ul>
+          <p style="margin-bottom:0">
+            You already met the client side of this in M2-04: the caller proves themselves by sending
+            <code>Authorization: Bearer &lt;token&gt;</code> on the request. Now you build the server
+            side that checks it.
+          </p>
+
+          <!-- ============================================================
+               SECTION 2 — middleware
+               ============================================================ -->
+          <h2 id="middleware" data-toc="Middleware: the gate">
+            <span class="h2-index">02</span>Middleware: code that runs <em>before</em> your handler
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            <strong>Middleware</strong> is a filter that sits <em>in front of</em> your route handler
+            in the request pipeline. Every request passes through the middleware first; the
+            middleware can let it through, tweak it, or <strong>reject it outright</strong> — and if
+            it rejects, your route code never runs at all.
+          </p>
+
+          <div class="callout callout--note">
+            <span class="callout-tag">Mental model — a bouncer at the door</span>
+            <p style="margin:0">
+              A request wants to reach your handler. Middleware is the bouncer between the street and
+              the room: it checks your credentials at the door. Pass, and you walk in and the handler
+              serves you. Fail, and you never get inside — the bouncer turns you away right there. You
+              can stack several bouncers (logging, rate-limiting, auth); the request has to clear each
+              one in turn. <em>(If you've seen Express middleware, it's the same idea; if you've seen
+              a decorator wrapping a function, also the same shape — a wrapper that runs first.)</em>
+            </p>
+          </div>
+
+          <p>
+            You don't write the auth middleware yourself — Laravel and Sanctum ship it. Your job is
+            just to <strong>attach</strong> it to the routes you want guarded. The specific bouncer
+            you want is called <code>auth:sanctum</code>.
+          </p>
+
+          <!-- ============================================================
+               SECTION 3 — auth:sanctum
+               ============================================================ -->
+          <h2 id="guard" data-toc="What auth:sanctum does">
+            <span class="h2-index">03</span>The <code>auth:sanctum</code> guard, step by step
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            When you attach <code>auth:sanctum</code> to a route, here's what runs on every request
+            <em>before</em> your handler — for free, no code from you:
+          </p>
+
+          <div class="flow">
+            <div class="flow-step">
+              <div class="flow-rail"><div class="flow-bullet">1</div><div class="flow-line"></div></div>
+              <div class="flow-body">
+                <div class="fb-title">Read the header</div>
+                <div class="fb-text">It looks for <code>Authorization: Bearer &lt;token&gt;</code> on the request. No such header → straight to a <code>401</code>.</div>
+              </div>
+            </div>
+            <div class="flow-step">
+              <div class="flow-rail"><div class="flow-bullet">2</div><div class="flow-line"></div></div>
+              <div class="flow-body">
+                <div class="fb-title">Verify the token</div>
+                <div class="fb-text">It finds that token's row in <code>personal_access_tokens</code> and checks it by <b>hashing</b> the presented token and comparing to the stored hash — the same never-store-raw principle you used for passwords (M2-03/M2-04). One nuance: tokens use a <em>fast</em> SHA-256 hash, not the slow bcrypt used for passwords — safe here because a token is long, high-entropy random data with nothing to guess, unlike a human password.</div>
+              </div>
+            </div>
+            <div class="flow-step">
+              <div class="flow-rail"><div class="flow-bullet">3</div><div class="flow-line"></div></div>
+              <div class="flow-body">
+                <div class="fb-title">Resolve the user — or reject</div>
+                <div class="fb-text"><b>Valid</b> → it loads the <code>User</code> that token belongs to and attaches them to the request, then lets it through. <b>Missing / wrong / revoked</b> → it short-circuits with <code>401 Unauthorized</code> and your handler never runs.</div>
+              </div>
+            </div>
+            <div class="flow-step">
+              <div class="flow-rail"><div class="flow-bullet">4</div><div class="flow-line"></div></div>
+              <div class="flow-body">
+                <div class="fb-title">Your handler runs — authenticated</div>
+                <div class="fb-text">Only genuine, token-bearing requests reach your code. And because step 3 already identified the user, you can just <em>ask</em> for them (§5).</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="callout callout--note">
+            <span class="callout-tag">The 401 comes back as JSON — your setup already handles it</span>
+            <p style="margin:0">
+              Because you configured Laravel to render JSON for <code>api/*</code> (M2-02), a rejected
+              request gets a clean <code>401</code> with <code>{ "message": "Unauthenticated." }</code>
+              — not an HTML redirect to a login page. Zero extra Sanctum config, same as when you set
+              up tokens: token auth Just Works from the pieces you already installed.
+            </p>
+          </div>
+
+          <!-- ============================================================
+               SECTION 4 — attaching middleware
+               ============================================================ -->
+          <h2 id="attach" data-toc="Attaching the middleware">
+            <span class="h2-index">04</span>Attaching <code>auth:sanctum</code> to a route
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            You attach middleware with <code>-&gt;middleware(...)</code>. Here's the shape on a
+            made-up route (not your task — the pattern):
+          </p>
+
+          <div class="code">
+            <div class="code-bar">
+              <span class="code-lang">php — attach middleware to ONE route (illustrative)</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code>Route::middleware('auth:sanctum')->get('/example', function (Request $request) {
+    // only reached if the Bearer token was valid
+    return 'you are in';
+});</code></pre>
+          </div>
+
+          <p>
+            Once you have several routes that all need a login, don't repeat
+            <code>-&gt;middleware(...)</code> on each — wrap them in a <strong>group</strong> so the
+            gate applies to all of them at once:
+          </p>
+
+          <div class="code">
+            <div class="code-bar">
+              <span class="code-lang">php — one gate for many routes (illustrative)</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code>Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/example',  /* ... */);
+    Route::post('/another', /* ... */);
+    // every route in here is protected
+});</code></pre>
+          </div>
+
+          <p style="margin-bottom:0">
+            For today one protected route is enough, so the single-route form is fine — but the group
+            is worth knowing, because M3+ will pile up routes that all require a logged-in user.
+          </p>
+
+          <!-- ============================================================
+               SECTION 5 — $request->user()
+               ============================================================ -->
+          <h2 id="whoami" data-toc="Knowing who's calling">
+            <span class="h2-index">05</span>Knowing who's calling: <code>$request-&gt;user()</code>
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            Inside a route guarded by <code>auth:sanctum</code>, the middleware has already figured
+            out who the token belongs to. So you don't look anyone up — you just ask:
+          </p>
+
+          <div class="code">
+            <div class="code-bar">
+              <span class="code-lang">php — the authenticated user (textbook line)</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code>$request->user();   // → the User model this request's token belongs to
+                    // (in a PROTECTED route it's never null — the gate guaranteed it)</code></pre>
+          </div>
+
+          <p>
+            Notice the contrast with your <code>/login</code> route. There, nobody was authenticated
+            yet, so <em>you</em> had to find the user by email and verify the password by hand. In a
+            <strong>protected</strong> route that work is already done — <code>$request-&gt;user()</code>
+            hands you the logged-in user directly. That's the payoff of the token: after login, the
+            server can identify the caller on every request without them re-sending a password.
+          </p>
+
+          <div class="callout callout--note">
+            <span class="callout-tag">401 vs 403 — a quick distinction</span>
+            <p style="margin:0">
+              <code>401 Unauthorized</code> = "I don't know who you are" (no/invalid token) — what
+              <code>auth:sanctum</code> returns. <code>403 Forbidden</code> = "I know who you are, but
+              you're not allowed to do this" (e.g. a normal user hitting an admin-only action). Today
+              is all <code>401</code>; <code>403</code> shows up later when some users can do things
+              others can't.
+            </p>
+          </div>
+
+          <!-- ============================================================
+               SECTION 6 — public vs protected
+               ============================================================ -->
+          <h2 id="publicvs" data-toc="Public vs protected">
+            <span class="h2-index">06</span>Which routes are public, which are protected?
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            This is a real design decision, and it has a trap in it. It's tempting to "secure
+            everything." But look what happens if you put <code>auth:sanctum</code> on
+            <code>/login</code>:
+          </p>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Route</th><th>Public or protected?</th><th>Why</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>POST /register</code></td>
+                  <td><b>Public</b></td>
+                  <td>A brand-new user has no token yet — requiring one would make signup impossible.</td>
+                </tr>
+                <tr>
+                  <td><code>POST /login</code></td>
+                  <td><b>Public</b></td>
+                  <td>Login is <em>how you get</em> a token. Requiring a token to log in is a chicken-and-egg deadlock — nobody could ever authenticate.</td>
+                </tr>
+                <tr>
+                  <td>your new "who am I" route</td>
+                  <td><b>Protected</b></td>
+                  <td>It answers "who is the logged-in user?" — meaningless without a login, so it belongs behind the gate.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <p style="margin-bottom:0">
+            The rule: routes that <em>hand out</em> tokens (register, login) stay open; routes that
+            <em>need a logged-in user</em> go behind <code>auth:sanctum</code>. When M4 adds
+            "submit a flag," that endpoint will be protected too — only real, logged-in players
+            score.
+          </p>
+
+          <!-- ============================================================
+               SECTION 7 — check yourself
+               ============================================================ -->
+          <h2 id="check" data-toc="Check yourself">
+            <span class="h2-index">07</span>Check yourself
+          </h2>
+          <hr class="section-rule" />
+          <p>Predict each before revealing it.</p>
+
+          <div data-widget="quiz" data-kicker="Quiz" data-title="Predict the behaviour">
+            <script type="application/json">
+            {
+              "questions": [
+                {
+                  "q": "What is middleware, in one line?",
+                  "options": [
+                    "Code that runs AFTER your handler to format the JSON response.",
+                    "A filter that runs BEFORE your handler in the request pipeline — it can let the request through, modify it, or reject it before your route code ever runs.",
+                    "A second database that stores sessions."
+                  ],
+                  "answer": 1,
+                  "why": "Middleware sits in front of your handler like a bouncer. auth:sanctum is middleware that rejects unauthenticated requests before they reach your code."
+                },
+                {
+                  "q": "A request hits an auth:sanctum route with NO Authorization header. What happens?",
+                  "options": [
+                    "Your handler runs and $request->user() is just null.",
+                    "The middleware short-circuits with a 401 Unauthenticated; your handler never runs.",
+                    "The request is redirected to /register."
+                  ],
+                  "answer": 1,
+                  "why": "No valid Bearer token → auth:sanctum rejects with 401 before your handler executes. Your route code only runs for authenticated requests, which is exactly why you can trust $request->user() inside it."
+                },
+                {
+                  "q": "Inside a protected route, what does $request->user() return?",
+                  "options": [
+                    "Every user in the database.",
+                    "The email string from the request body.",
+                    "The User model whose token authenticated this request — the middleware already resolved it from the Bearer token."
+                  ],
+                  "answer": 2,
+                  "why": "The gate looked up the token's owner and attached them to the request, so $request->user() hands you the logged-in User directly — no manual lookup, unlike /login where you found them by email yourself."
+                },
+                {
+                  "q": "Should you also put auth:sanctum on /login and /register?",
+                  "options": [
+                    "Yes — protect every route for maximum security.",
+                    "No — those must stay public: users have no token yet when signing up or logging in, so requiring one would make authentication impossible (chicken-and-egg).",
+                    "It makes no difference either way."
+                  ],
+                  "answer": 1,
+                  "why": "Register and login are how a user OBTAINS a token, so they can't require one. Protect routes that need a logged-in user; leave the token-issuing routes open."
+                }
+              ]
+            }
+            </script>
+          </div>
+
+          <!-- ============================================================
+               SECTION 8 — checkpoint
+               ============================================================ -->
+          <h2 id="checkpoint" data-toc="Checkpoint">
+            <span class="h2-index">08</span>Checkpoint — build a protected route &amp; close the loop
+          </h2>
+          <hr class="section-rule" />
+          <p>
+            Add one <strong>protected</strong> route that reports the logged-in user, then prove the
+            gate works from both sides. Every piece is shown above; <strong>you</strong> choose the
+            route, attach the middleware, and test it.
+          </p>
+
+          <div data-widget="checklist"
+               data-progress-id="m2-07"
+               data-next="Tell Claude: no token → 401, valid token → your user. That's register → login → authenticated request — M2 is essentially done. Next we look at the FRONTEND side (Vue forms + storing the token + auth state), then M3 (challenges)."
+               data-kicker="Checkpoint"
+               data-title="A route only a valid token can reach">
+            <script type="application/json">
+            {
+              "items": [
+                "Add a protected route in <code>routes/api.php</code> — e.g. <code>GET /user</code> (or <code>/me</code>) — attached to the <code>auth:sanctum</code> middleware (§4). Inside it, return <code>$request->user()</code> (§5).",
+                "Leave <code>/register</code> and <code>/login</code> <b>public</b> — do NOT gate them (§6). Only the new route goes behind <code>auth:sanctum</code>.",
+                "Test WITHOUT a token: call the new route with no <code>Authorization</code> header → you should get <code>401</code> <code>{ \"message\": \"Unauthenticated.\" }</code>, and your handler does not run. (The browser address bar is fine for this one — it sends no auth header.)",
+                "Get a fresh token: call <code>/login</code> with good credentials and copy the <code>token</code> from the response.",
+                "Test WITH the token: call the new route sending the header <code>Authorization: Bearer &lt;that-token&gt;</code> → <code>200</code> with your user (and <b>no</b> password, thanks to <code>#[Hidden]</code>). <b>Heads up:</b> the address bar can't send headers — use <code>fetch</code> with an <code>Authorization</code> header (add <code>'Authorization': 'Bearer &lt;token&gt;'</code> to the <code>headers</code> object from M2-02), a REST client, or <code>curl.exe -H</code>.",
+                "Say it back: why can you trust <code>$request->user()</code> is not null inside this route, but you couldn't in <code>/login</code>?",
+                "Commit (e.g. <code>feat(backend): add protected /api/user route via auth:sanctum</code>) and push."
+              ]
+            }
+            </script>
+          </div>
+
+          <div class="callout callout--key">
+            <span class="callout-tag">You're done when</span>
+            <p style="margin:0">
+              The same route returns <code>401</code> with no token and <code>200</code> + your user
+              with a valid <code>Bearer</code> token — <strong>and</strong> you can explain what the
+              <code>auth:sanctum</code> middleware did in between, and why <code>/login</code> had to
+              stay public.
+            </p>
+          </div>
+
+          <div class="callout callout--warn">
+            <span class="callout-tag">If something's off</span>
+            <p style="margin:0">
+              <b>401 even with a token?</b> Check the header is exactly
+              <code>Authorization: Bearer &lt;token&gt;</code> (the word <code>Bearer</code>, a space,
+              then the <em>full</em> <code>id|string</code> token from login — not a truncated copy).
+              <b>Getting HTML or a redirect instead of JSON 401?</b> The request isn't being treated
+              as <code>api/*</code> JSON — confirm you're calling the <code>/api/...</code> URL.
+              <b>500, not 401/200?</b> Likely a syntax slip in the new route — read the
+              <code>php artisan serve</code> terminal or <code>php artisan route:list</code> for the
+              real error (the browser's CORS message is a red herring, remember). Paste me the
+              response and I'll help.
+            </p>
+          </div>
+
+          <p>
+            When the gate turns away a tokenless request and welcomes a valid one, you've closed the
+            whole authentication loop: <strong>register → login → authenticated request</strong>.
+            That's the backend of M2 essentially complete. From here we turn to the <strong>Vue
+            side</strong> — building the register/login <em>forms</em>, storing the token in the
+            browser, and sending it as a <code>Bearer</code> header on protected calls so the UI has
+            an "logged-in" state — and then on to <strong>M3, where challenges appear.</strong>
+          </p>
+
+          <!-- ---- page end ---- -->
+          <nav class="page-end">
+            <a class="btn btn--ghost" href="m2-06-the-login-endpoint.html">← M2-06</a>
+            <span class="pe-label">Next concept unlocks when this checkpoint is done</span>
+          </nav>
+
+          <footer class="site-foot">
+            <span>M2-07 · Protecting a Route</span>
+            <span class="mono">CTF Platform — study site</span>
+          </footer>
+
+        </article>
+      </div>
+    </main>
+
+  </div>
+
+  <script src="assets/js/app.js"></script>
+  <script src="assets/js/widgets.js"></script>
+</body>
+</html>
