@@ -414,6 +414,62 @@
             </script>
           </div>
 
+          <h3>Copy-paste testers</h3>
+          <p>
+            To make the "get a token → call the route" steps painless, here are ready-made testers —
+            fill in the <strong>three blanks</strong> (your route path, your login credentials, and the
+            token key your <code>/login</code> returns), then run them. In the browser console, do both
+            in the <em>same tab</em> so the <code>token</code> variable carries from step 1 into step 2.
+          </p>
+
+          <div class="code">
+            <div class="code-bar">
+              <span class="code-lang">browser console — 1. log in, capture the token</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code>let token = (await (await fetch('http://localhost:8000/api/login', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+  body: JSON.stringify({ email: 'YOU@example.com', password: 'YOUR_PASSWORD' })
+})).json()).token;          // ← change .token to match what YOUR /login returns
+token;                      // prints it, so you can eyeball the  id|...  shape</code></pre>
+          </div>
+
+          <div class="code">
+            <div class="code-bar">
+              <span class="code-lang">browser console — 2. call the guarded route (with, then without, the token)</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code>// WITH the token → expect 200 and your user (no password field)
+await (await fetch('http://localhost:8000/api/user', {   // ← your route: /user, /me, …
+  headers: { 'Accept': 'application/json', 'Authorization': 'Bearer ' + token }
+})).json();
+
+// WITHOUT it → expect 401 { "message": "Unauthenticated." }
+await (await fetch('http://localhost:8000/api/user', {
+  headers: { 'Accept': 'application/json' }
+})).json();</code></pre>
+          </div>
+
+          <div class="code">
+            <div class="code-bar">
+              <span class="code-lang">terminal — curl.exe (the .exe matters on Windows: plain curl is a PowerShell alias)</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code>curl.exe -X POST http://localhost:8000/api/login -H "Accept: application/json" -H "Content-Type: application/json" -d "{\"email\":\"YOU@example.com\",\"password\":\"YOUR_PASSWORD\"}"
+# copy the token from the response, then:
+curl.exe http://localhost:8000/api/user -H "Accept: application/json" -H "Authorization: Bearer PASTE_TOKEN"</code></pre>
+          </div>
+
+          <div class="callout callout--note">
+            <span class="callout-tag">These are testers, not your build</span>
+            <p style="margin:0">
+              This is <em>client</em> code poking your API from outside — the same <code>fetch</code>
+              idea as M2-02. The route itself (in <code>routes/api.php</code>) is still yours to write;
+              these just save you retyping the request every time you test.
+            </p>
+          </div>
+
           <div class="callout callout--key">
             <span class="callout-tag">You're done when</span>
             <p style="margin:0">
