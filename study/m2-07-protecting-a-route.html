@@ -448,6 +448,286 @@
             an "logged-in" state — and then on to <strong>M3, where challenges appear.</strong>
           </p>
 
+          <!-- ============================================================
+               FOLLOW-UP (added after Alex's question) — polymorphic tokens
+               ============================================================ -->
+          <hr class="section-rule" style="margin-top:40px" />
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:26px">
+            <span class="pill pill--ms">Follow-up</span>
+            <span class="pill pill--idx">You asked · going deeper</span>
+          </div>
+
+          <h2 id="tokenable" data-toc="Follow-up: is the users table special?">
+            <span class="h2-index">↳</span>Is the <code>users</code> table special? (could a <code>companies</code> table have tokens too?)
+          </h2>
+          <hr class="section-rule" />
+
+          <div class="callout callout--bridge">
+            <span class="callout-tag">The question</span>
+            <p style="margin:0">
+              In §03 I said the guard "finds that token's row and loads the <code>User</code> it belongs
+              to." Fair question: <em>how does it know</em> the token pairs with a user — that it was
+              made by <code>$user-&gt;createToken(...)</code> for a row in the <code>users</code> table?
+              Is <code>users</code> somehow the <em>special</em> table Sanctum is wired to? <strong>No —
+              and that's the elegant part.</strong> The short answers: the owner is <em>written down</em>
+              when the token is created (not guessed later), and <strong>yes</strong>, a
+              <code>companies</code> table could own tokens in the exact same way. Below is the real
+              mechanism, with the PHP-isms unpacked as we hit them — none of this is your build task,
+              it's Sanctum's own plumbing.
+            </p>
+          </div>
+
+          <!-- ---- PHP vocabulary first ---- -->
+          <h3>First, the PHP words you'll see</h3>
+          <p>
+            You don't come from PHP, and this bit leans on a few PHP/Laravel-specific things. Here's the
+            pocket dictionary so the rest reads smoothly — skim it, then refer back:
+          </p>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>You'll see</th><th>What it actually is (in plain terms)</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>use X;</code> <em>inside</em> a class</td>
+                  <td>Applies a <strong>trait</strong>. A trait is a pre-written bundle of methods a class
+                    can <em>absorb</em> — writing <code>use HasApiTokens;</code> inside a class pours all
+                    of that trait's methods (like <code>createToken()</code>) straight into it. It's PHP's
+                    version of a <em>mixin</em>: the closest thing to "inheriting" behaviour from something
+                    that isn't a parent class. This one line is what makes a model "able to have tokens."</td>
+                </tr>
+                <tr>
+                  <td><code>use X;</code> at the <em>top</em> of a file</td>
+                  <td>Same keyword, completely different job: an <strong>import</strong>. It just lets you
+                    type the short name <code>Request</code> instead of the full
+                    <code>Illuminate\Http\Request</code>. So: top-of-file <code>use</code> = import a name;
+                    in-class-body <code>use</code> = apply a trait. Don't let the shared keyword fool you.</td>
+                </tr>
+                <tr>
+                  <td><code>App\Models\User</code> and the <code>\</code></td>
+                  <td>A class's <strong>fully-qualified name</strong> — its full "address" in the codebase.
+                    The backslash <code>\</code> is just the separator between namespaces (folders-of-code) —
+                    <em>not</em> a file path and <em>not</em> an escape character. Hold onto this: Laravel
+                    stores this whole string in a column to remember <em>which kind</em> of model owns a token.</td>
+                </tr>
+                <tr>
+                  <td><code>User::class</code></td>
+                  <td>Evaluates to that fully-qualified name <em>as a plain string</em>
+                    (<code>"App\Models\User"</code>). Useful when code needs to name a class rather than use one.</td>
+                </tr>
+                <tr>
+                  <td><code>$obj-&gt;thing</code> vs <code>Class::thing()</code></td>
+                  <td><code>-&gt;</code> reaches into a specific <em>instance</em> (<code>$user-&gt;id</code> =
+                    "this user's id"). <code>::</code> calls something on the <em>class itself</em>, no
+                    instance needed (<code>PersonalAccessToken::findToken(...)</code>). Two different arrows
+                    for two different targets.</td>
+                </tr>
+                <tr>
+                  <td><code>explode('|', $s, 2)</code></td>
+                  <td>PHP's string split — exactly JavaScript's <code>$s.split('|')</code>. The <code>2</code>
+                    caps it at two pieces. It returns an array, and <code>[$id, $rest] = explode(...)</code>
+                    destructures it, just like array destructuring in JS.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- ---- the pairing is recorded ---- -->
+          <h3>The owner is <em>written down</em>, not figured out</h3>
+          <p>
+            Here's the one idea that dissolves the whole confusion: <strong>the middleware never deduces
+            who owns a token — it just reads a note that was saved when the token was born.</strong> When
+            you ran <code>$user-&gt;createToken('auth-token')</code>, Sanctum did roughly this (its own
+            code, trimmed):
+          </p>
+
+          <div class="code">
+            <div class="code-bar">
+              <span class="code-lang">php — Sanctum's createToken, the essential lines</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code>$token = $this->tokens()->create([        // $this is the User that called createToken
+    'name'  => $name,
+    'token' => hash('sha256', $plainTextToken),   // stores a HASH, never the raw token
+    // ...
+]);
+return $token->getKey() . '|' . $plainTextToken;  // hands you  "7|aB9x..."</code></pre>
+          </div>
+
+          <p>
+            The interesting column is one you might expect to be called <code>user_id</code> — but open
+            your own migration (<code>...create_personal_access_tokens_table.php</code>) and there's no
+            such column. Instead the line <code>$table-&gt;morphs('tokenable')</code> created <em>two</em>
+            columns. When <code>$user-&gt;createToken()</code> inserts the row, they get filled in like this:
+          </p>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>column</th><th>value</th><th>what it means</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>id</code></td><td><code>7</code></td><td>this token's own row number</td></tr>
+                <tr><td><code>tokenable_type</code></td><td><code>App\Models\User</code></td><td><b>which kind</b> of thing owns it</td></tr>
+                <tr><td><code>tokenable_id</code></td><td><code>5</code></td><td><b>which one</b> — User #5</td></tr>
+                <tr><td><code>token</code></td><td><code>9f2a…</code> (sha256)</td><td>the hashed secret</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="callout callout--key">
+            <span class="callout-tag">The key concept — a polymorphic relationship</span>
+            <p style="margin:0">
+              A normal foreign key is one column (<code>user_id = 5</code>) that can only ever point at the
+              <code>users</code> table. Sanctum instead uses a <strong>polymorphic</strong> relationship: a
+              <em>two-column</em> foreign key — <code>tokenable_type</code> says <em>which table/model</em>,
+              <code>tokenable_id</code> says <em>which row in it</em>. That pair can point at <em>any</em>
+              model, not just users. In Laravel's ORM (Eloquent) the two sides are named
+              <code>morphMany</code> ("a User has many tokens") and <code>morphTo</code> ("a token belongs
+              to… whatever <code>tokenable_type</code> says"). The word "morph" is the tell that the target
+              type isn't fixed.
+            </p>
+          </div>
+
+          <!-- ---- what makes a model tokenable ---- -->
+          <h3>What actually makes a model "tokenable": the trait, not the name</h3>
+          <p>
+            So is <code>users</code> the special table Sanctum knows about? Look at the exact test the guard
+            uses to decide whether something is allowed to own a token (its own code):
+          </p>
+
+          <div class="code">
+            <div class="code-bar">
+              <span class="code-lang">php — Sanctum's guard, the "can this thing own tokens?" check</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code>in_array(HasApiTokens::class, class_uses_recursive(get_class($tokenable)))
+//        └ the trait's name        └ "list every trait this class uses"</code></pre>
+          </div>
+
+          <p>
+            Read it in English: <em>"does the model that owns this token <strong>use the
+            <code>HasApiTokens</code> trait</strong>?"</em> That's the whole gate. It asks about a
+            <strong>trait</strong>, never about the class being <code>User</code>. There is <em>no</em>
+            hard-coded reference to <code>users</code> anywhere in the token flow. The <code>users</code>
+            table isn't special — it just happens to be the one model in your app that currently carries
+            <code>use HasApiTokens;</code> (you can see that line in your <code>app/Models/User.php</code>).
+          </p>
+
+          <!-- ---- the token string on the way back in ---- -->
+          <h3>And on the way back in: how <code>7|aB9x...</code> becomes User #5</h3>
+          <p>
+            This also explains the "<code>id|token</code>" shape from the login response that §03 glossed
+            over. The part before the <code>|</code> is literally that row's <code>id</code>. So verifying
+            an incoming <code>Authorization: Bearer 7|aB9x...</code> is fast and direct:
+          </p>
+
+          <div class="flow">
+            <div class="flow-step">
+              <div class="flow-rail"><div class="flow-bullet">1</div><div class="flow-line"></div></div>
+              <div class="flow-body">
+                <div class="fb-title">Split on the <code>|</code></div>
+                <div class="fb-text"><code>[$id, $secret] = explode('|', $token, 2)</code> → <code>"7"</code> and <code>"aB9x..."</code>. The <code>id</code> tells it <em>exactly which row</em> to open — a primary-key lookup, no scanning the whole table.</div>
+              </div>
+            </div>
+            <div class="flow-step">
+              <div class="flow-rail"><div class="flow-bullet">2</div><div class="flow-line"></div></div>
+              <div class="flow-body">
+                <div class="fb-title">Hash-check the secret</div>
+                <div class="fb-text">It hashes the presented <code>"aB9x..."</code> and constant-time-compares it to the <code>token</code> hash stored in row #7. Match → real token; mismatch → rejected. (Same never-store-raw idea as §03.)</div>
+              </div>
+            </div>
+            <div class="flow-step">
+              <div class="flow-rail"><div class="flow-bullet">3</div><div class="flow-line"></div></div>
+              <div class="flow-body">
+                <div class="fb-title">Follow <code>tokenable_type</code> + <code>tokenable_id</code> home</div>
+                <div class="fb-text">Row #7 says <code>App\Models\User</code> / <code>5</code>, so Eloquent builds a <code>User</code> from row 5 of <code>users</code>. <em>That</em> instance is what <code>$request-&gt;user()</code> hands you.</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ---- companies ---- -->
+          <h3>So yes — a <code>companies</code> table could have tokens too</h3>
+          <p>
+            Your instinct was exactly right. Because nothing hard-codes <code>User</code>, the recipe for
+            "let companies authenticate with tokens" is a single trait on a <code>Company</code> model:
+          </p>
+
+          <div class="code">
+            <div class="code-bar">
+              <span class="code-lang">php — illustrative: any model can become tokenable</span>
+              <button class="copy-btn">Copy</button>
+            </div>
+<pre><code>class Company extends Model
+{
+    use HasApiTokens;   // ← the entire requirement
+}
+
+// then, exactly like a user:
+$company->createToken('api');   // row: tokenable_type = App\Models\Company, tokenable_id = &lt;company id&gt;</code></pre>
+          </div>
+
+          <p style="margin-bottom:0">
+            Those company tokens land in the <em>same</em> <code>personal_access_tokens</code> table as the
+            user tokens, told apart purely by <code>tokenable_type</code>. A request bearing one resolves,
+            step-3 above, back to a <code>Company</code> instance instead of a <code>User</code>. One
+            polymorphic table, many kinds of owner.
+          </p>
+
+          <div class="callout callout--warn">
+            <span class="callout-tag">One wrinkle, for later — not now</span>
+            <p style="margin:0">
+              Creating and verifying company tokens works out of the box as described. The one extra knob is
+              the Sanctum <em>guard's provider</em>: if you ever want <strong>both</strong> users and
+              companies logging in, you'd give them separate guards so each protected route knows which kind
+              of caller it expects. Default single-model setups (what you have) don't touch this at all —
+              file it under "M-way-later," not today.
+            </p>
+          </div>
+
+          <div class="callout callout--note">
+            <span class="callout-tag">Why this rhymes with your own project</span>
+            <p style="margin:0">
+              This is the same instinct behind the <code>challenges.type</code> field in our plan
+              (<code>static</code> / <code>shared_container</code> / <code>per_user_instance</code>): record
+              <em>what kind of thing</em> in a column so <strong>one</strong> table/mechanism can serve many
+              cases, instead of hard-coding a single type and rewriting later. Sanctum does it with
+              <code>tokenable_type</code>; we'll do it with a challenge <code>type</code>. Spotting that
+              pattern in a real library is exactly the muscle we're building.
+            </p>
+          </div>
+
+          <div data-widget="quiz" data-kicker="Quiz" data-title="Did the mechanism land?">
+            <script type="application/json">
+            {
+              "questions": [
+                {
+                  "q": "Your personal_access_tokens table has no user_id column. So how does a token know which user it belongs to?",
+                  "options": [
+                    "Laravel assumes every token is a User, since that's the only table with logins.",
+                    "Two columns — tokenable_type (e.g. 'App\\Models\\User') and tokenable_id (the owner's row) — were written when the token was created; the guard just reads them back.",
+                    "It compares the token string against every row in the users table until one matches."
+                  ],
+                  "answer": 1,
+                  "why": "It's a polymorphic relationship: tokenable_type says which KIND of model owns the token and tokenable_id says which ROW. The pairing is recorded at creation time, not deduced on each request."
+                },
+                {
+                  "q": "You add `use HasApiTokens;` to a new Company model and call $company->createToken('api'). What ends up in tokenable_type?",
+                  "options": [
+                    "App\\Models\\User — Sanctum always records User.",
+                    "App\\Models\\Company — the polymorphic relation fills in whichever model created the token.",
+                    "It throws an error; only the User model is allowed to own tokens."
+                  ],
+                  "answer": 1,
+                  "why": "Nothing hard-codes User. The guard only checks whether the owning model uses the HasApiTokens trait, so a Company with that trait stores its own class name in tokenable_type and authenticates the same way."
+                }
+              ]
+            }
+            </script>
+          </div>
+
           <!-- ---- page end ---- -->
           <nav class="page-end">
             <a class="btn btn--ghost" href="m2-06-the-login-endpoint.html">← M2-06</a>
